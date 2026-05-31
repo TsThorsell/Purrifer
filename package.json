@@ -1,0 +1,34 @@
+{
+  "name": "purrifer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first economics control panel for documents, payments, and follow-up.",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "scripts\\dev.cmd",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test:architecture": "node --test tests/architecture/*.test.mjs",
+    "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3",
+    "postinstall": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "electron": "^33.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

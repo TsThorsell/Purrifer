@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+out/
+.vite/
+coverage/
+*.log
+
+.tmp-smoke-electron.sqlite
