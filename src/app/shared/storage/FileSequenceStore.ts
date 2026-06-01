@@ -21,3 +21,4 @@ export class FileSequenceStore {
     return `${prefix}${String(nextValue).padStart(6, "0")}`;
   }
 }
+

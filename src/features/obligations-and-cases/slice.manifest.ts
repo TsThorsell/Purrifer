@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const obligationsAndCasesManifest: SliceManifest = {
   sliceId: "obligations-and-cases",
@@ -13,4 +13,5 @@ export const obligationsAndCasesManifest: SliceManifest = {
     }
   ]
 };
+
 

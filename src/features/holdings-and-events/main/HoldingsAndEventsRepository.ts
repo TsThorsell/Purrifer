@@ -1,5 +1,6 @@
 import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type { HoldingDetails, HoldingEvent, HoldingSummary } from "../contracts";
+import type { HoldingTimelineFilter, HoldingTimelineItem } from "../contracts";
 
 export class HoldingsAndEventsRepository {
   constructor(private readonly sqliteDatabase: SqliteDatabase) {}
@@ -67,7 +68,7 @@ export class HoldingsAndEventsRepository {
         SELECT event_id, holding_id, event_type, event_date, amount, note, created_at
         FROM holding_events
         WHERE holding_id = ?
-        ORDER BY event_date DESC, created_at DESC
+        ORDER BY event_date DESC, created_at DESC, event_id DESC
         `
       )
       .all(holdingId) as Array<Record<string, unknown>>;
@@ -109,4 +110,72 @@ export class HoldingsAndEventsRepository {
     });
     tx();
   }
+
+  async listHoldingTimeline(filter?: HoldingTimelineFilter): Promise<HoldingTimelineItem[]> {
+    const db = await this.sqliteDatabase.open();
+
+    const conditions: string[] = [];
+    const params: Array<string> = [];
+
+    if (filter?.holdingId?.trim()) {
+      conditions.push("h.holding_id = ?");
+      params.push(filter.holdingId.trim());
+    }
+
+    if (filter?.entityId?.trim()) {
+      conditions.push("h.entity_id = ?");
+      params.push(filter.entityId.trim());
+    }
+
+    if (filter?.eventType) {
+      conditions.push("e.event_type = ?");
+      params.push(filter.eventType);
+    }
+
+    if (filter?.fromEventDate?.trim()) {
+      conditions.push("e.event_date >= ?");
+      params.push(filter.fromEventDate.trim());
+    }
+
+    if (filter?.toEventDate?.trim()) {
+      conditions.push("e.event_date <= ?");
+      params.push(filter.toEventDate.trim());
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const rows = db
+      .prepare(
+        `
+        SELECT
+          e.event_id,
+          e.holding_id,
+          h.entity_id,
+          h.name AS holding_name,
+          e.event_type,
+          e.event_date,
+          e.amount,
+          e.note,
+          e.created_at
+        FROM holding_events AS e
+        INNER JOIN holdings AS h ON h.holding_id = e.holding_id
+        ${whereClause}
+        ORDER BY e.event_date DESC, e.created_at DESC, e.event_id DESC
+        `
+      )
+      .all(...params) as Array<Record<string, unknown>>;
+
+    return rows.map((row) => ({
+      eventId: String(row.event_id),
+      holdingId: String(row.holding_id),
+      eventType: row.event_type as HoldingEvent["eventType"],
+      eventDate: String(row.event_date),
+      amount: Number(row.amount),
+      note: row.note ? String(row.note) : undefined,
+      createdAt: String(row.created_at),
+      holdingName: String(row.holding_name),
+      entityId: String(row.entity_id)
+    }));
+  }
 }
+

@@ -1,5 +1,6 @@
 import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type { SearchObjectType, SearchResultItem } from "../contracts";
+import type { SearchIndexQualityReport } from "../contracts";
 
 interface IndexRow {
   objectType: SearchObjectType;
@@ -11,8 +12,48 @@ interface IndexRow {
   targetRoute: SearchResultItem["targetRoute"];
 }
 
+type SearchIndexTypeCount = Record<SearchObjectType, number>;
+
 export class SearchAndIndexRepository {
   constructor(private readonly sqliteDatabase: SqliteDatabase) {}
+
+  async getIndexQualityReport(): Promise<SearchIndexQualityReport> {
+    const db = await this.sqliteDatabase.open();
+
+    const totalRow = db
+      .prepare("SELECT COUNT(*) AS total FROM search_index")
+      .get() as { total: number };
+
+    const indexedAtRow = db
+      .prepare("SELECT MAX(indexed_at) AS indexedAt FROM search_index")
+      .get() as { indexedAt: string | null };
+
+    const rows = db
+      .prepare("SELECT object_type AS objectType, COUNT(*) AS count FROM search_index GROUP BY object_type")
+      .all() as Array<{ objectType: SearchObjectType; count: number }>;
+
+    const countsByObjectType: SearchIndexTypeCount = {
+      document: 0,
+      voucher: 0,
+      "supplier-invoice": 0,
+      "payment-event": 0,
+      obligation: 0,
+      case: 0
+    };
+
+    for (const row of rows) {
+      if (row.objectType === "document" || row.objectType === "voucher" || row.objectType === "supplier-invoice" ||
+          row.objectType === "payment-event" || row.objectType === "obligation" || row.objectType === "case") {
+        countsByObjectType[row.objectType] = Number(row.count);
+      }
+    }
+
+    return {
+      indexedAt: indexedAtRow.indexedAt ?? null,
+      totalIndexedItems: Number(totalRow.total ?? 0),
+      countsByObjectType
+    };
+  }
 
   async rebuildIndex(indexedAt: string): Promise<number> {
     const db = await this.sqliteDatabase.open();
@@ -230,3 +271,4 @@ export class SearchAndIndexRepository {
     return 0;
   }
 }
+

@@ -1,4 +1,4 @@
-﻿export type ReviewActionStatus = "approved" | "accepted-incomplete" | "rejected";
+export type ReviewActionStatus = "approved" | "accepted-incomplete" | "rejected";
 
 export interface ReviewQueueItem {
   stageBatchId: string;
@@ -32,3 +32,4 @@ export const bootstrapReviewChannels = {
   listNeedsReviewQueue: "bootstrap-review:list-needs-review",
   applyBulkAction: "bootstrap-review:apply-bulk-action"
 } as const;
+

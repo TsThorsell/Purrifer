@@ -1,4 +1,4 @@
-﻿export interface BootstrapCommitInput {
+export interface BootstrapCommitInput {
   stageBatchId: string;
 }
 
@@ -38,3 +38,4 @@ export const bootstrapCommitChannels = {
   listCommits: "bootstrap-commit:list",
   getCommit: "bootstrap-commit:get"
 } as const;
+

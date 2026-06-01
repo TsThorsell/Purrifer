@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PilotDashboardData } from "../contracts";
+import { Actions, Button, EmptyState, Field, FieldGrid, Page, PageHeader, Panel, SplitLayout, Stack, StatusPill } from "../../../renderer/components/Ui";
 
 export function BootstrapPilotDashboardPage() {
   const [ingestBatchId, setIngestBatchId] = useState("");
@@ -23,81 +24,98 @@ export function BootstrapPilotDashboardPage() {
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Bootstrap Pilot</p>
-          <h2>Pilot Migration Dashboard</h2>
-          <p className="muted">Ready-rate, review-rate, rejection reasons och confidence distribution per batch/kalla.</p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Bootstrap Pilot"
+        title="Pilot Migration Dashboard"
+        description="Ready-rate, review-rate, avslagsorsaker och confidence-fördelning per batch eller källa."
+      />
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      <section className="panel-card">
-        <div className="field-grid">
-          <label className="field-label" htmlFor="pilot-ingest-batch">ingest_batch_id (optional)</label>
-          <input id="pilot-ingest-batch" className="text-input" value={ingestBatchId} onChange={(event) => setIngestBatchId(event.target.value)} />
-          <label className="field-label" htmlFor="pilot-stage-batch">stage_batch_id (optional)</label>
-          <input id="pilot-stage-batch" className="text-input" value={stageBatchId} onChange={(event) => setStageBatchId(event.target.value)} />
-          <label className="field-label" htmlFor="pilot-source-system">source_system (optional)</label>
-          <input id="pilot-source-system" className="text-input" value={sourceSystem} onChange={(event) => setSourceSystem(event.target.value)} />
-        </div>
-        <div className="detail-actions">
-          <button className="primary-button" type="button" onClick={() => void loadDashboard()}>Ladda KPI</button>
-        </div>
-      </section>
+      <Panel title="Filter">
+        <FieldGrid>
+          <Field label="ingest_batch_id (valfri)">
+            <input value={ingestBatchId} onChange={(event) => setIngestBatchId(event.target.value)} />
+          </Field>
+          <Field label="stage_batch_id (valfri)">
+            <input value={stageBatchId} onChange={(event) => setStageBatchId(event.target.value)} />
+          </Field>
+          <Field label="source_system (valfri)">
+            <input value={sourceSystem} onChange={(event) => setSourceSystem(event.target.value)} />
+          </Field>
+        </FieldGrid>
+        <Actions>
+          <Button onClick={() => void loadDashboard()}>Ladda KPI</Button>
+        </Actions>
+      </Panel>
 
       {dashboard ? (
         <>
-          <section className="panel-card">
-            <h3>KPI</h3>
-            <small>Totalt: {dashboard.kpis.totalRecords} records</small>
-            <div className="stacked-list">
+          <Panel
+            title="KPI"
+            subtitle={<small>Totalt: {dashboard.kpis.totalRecords} poster</small>}
+          >
+            <Stack>
               <small>Ready-rate: {dashboard.kpis.readyRate}% ({dashboard.kpis.readyCount})</small>
               <small>Review-rate: {dashboard.kpis.reviewRate}% ({dashboard.kpis.needsReviewCount})</small>
               <small>Rejection-rate: {dashboard.kpis.rejectionRate}% ({dashboard.kpis.rejectedCount})</small>
               <small>Review actions: {dashboard.kpis.reviewedCount} (approved {dashboard.kpis.reviewApprovedCount}, accepted-incomplete {dashboard.kpis.reviewAcceptedIncompleteCount}, rejected {dashboard.kpis.reviewRejectedCount})</small>
               <small>Commit coverage: {dashboard.kpis.commitCoverageRate}% ({dashboard.kpis.committedCount})</small>
-            </div>
-          </section>
+            </Stack>
+          </Panel>
 
-          <section className="panel-card">
-            <h3>Reason Breakdown</h3>
-            <div className="stacked-list">
-              {dashboard.reasonBreakdown.map((item) => (
-                <small key={item.reasonCode}>{item.reasonCode}: {item.count}</small>
-              ))}
-              {dashboard.reasonBreakdown.length === 0 ? <p className="muted">Inga reasons hittades for filtret.</p> : null}
-            </div>
-          </section>
+          <SplitLayout>
+            <Panel title="Reason Breakdown" status={<StatusPill>{dashboard.reasonBreakdown.length}</StatusPill>}>
+              {dashboard.reasonBreakdown.length > 0 ? (
+                <Stack>
+                  {dashboard.reasonBreakdown.map((item) => (
+                    <div key={item.reasonCode} className="ui-card">
+                      <strong>{item.reasonCode}</strong>
+                      <small>{item.count}</small>
+                    </div>
+                  ))}
+                </Stack>
+              ) : (
+                <EmptyState>Inga orsaker hittades för filtret.</EmptyState>
+              )}
+            </Panel>
 
-          <section className="panel-card">
-            <h3>Confidence Distribution</h3>
-            <div className="stacked-list">
-              {dashboard.confidenceDistribution.map((item) => (
-                <small key={item.bucketLabel}>{item.bucketLabel}: {item.count}</small>
-              ))}
-            </div>
-          </section>
+            <Panel title="Confidence Distribution" status={<StatusPill>{dashboard.confidenceDistribution.length}</StatusPill>}>
+              <Stack>
+                {dashboard.confidenceDistribution.map((item) => (
+                  <div key={item.bucketLabel} className="ui-card">
+                    <strong>{item.bucketLabel}</strong>
+                    <small>{item.count}</small>
+                  </div>
+                ))}
+              </Stack>
+            </Panel>
+          </SplitLayout>
 
-          <section className="panel-card">
-            <h3>Batch / Kalla</h3>
-            <div className="stacked-list">
-              {dashboard.batchMetrics.map((item) => (
-                <article key={item.stageBatchId} className="list-card">
-                  <h4>{item.stageBatchId}</h4>
-                  <p className="muted">ingest: {item.ingestBatchId} · source: {item.sourceSystem}</p>
-                  <small>{item.stageCreatedAt}</small>
-                  <small>total {item.totalRecords} · ready {item.readyCount} · review {item.needsReviewCount} · rejected {item.rejectedCount} · committed {item.committedCount}</small>
-                </article>
-              ))}
-              {dashboard.batchMetrics.length === 0 ? <p className="muted">Ingen batchdata hittades for filtret.</p> : null}
-            </div>
-          </section>
+          <Panel title="Batch / källa" status={<StatusPill>{dashboard.batchMetrics.length}</StatusPill>}>
+            {dashboard.batchMetrics.length > 0 ? (
+              <Stack>
+                {dashboard.batchMetrics.map((item) => (
+                  <article key={item.stageBatchId} className="ui-card">
+                    <div className="ui-card__header">
+                      <div className="ui-card__title-block">
+                        <h4>{item.stageBatchId}</h4>
+                        <p className="ui-muted">ingest: {item.ingestBatchId} · source: {item.sourceSystem}</p>
+                      </div>
+                    </div>
+                    <small>{item.stageCreatedAt}</small>
+                    <small>total {item.totalRecords} · ready {item.readyCount} · review {item.needsReviewCount} · rejected {item.rejectedCount} · committed {item.committedCount}</small>
+                  </article>
+                ))}
+              </Stack>
+            ) : (
+              <EmptyState>Ingen batchdata hittades för filtret.</EmptyState>
+            )}
+          </Panel>
         </>
       ) : null}
-    </section>
+    </Page>
   );
 }
 

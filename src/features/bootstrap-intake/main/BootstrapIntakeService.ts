@@ -1,4 +1,4 @@
-﻿import { createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
@@ -176,6 +176,9 @@ export class BootstrapIntakeService {
 
         if (!duplicateInBatch) {
           seenInBatch.add(hash);
+        }
+
+        if (status === "new") {
           await this.repository.insertBatchFile({ ingestBatchId, file: result });
         }
       } catch (reason: unknown) {
@@ -261,3 +264,4 @@ export class BootstrapIntakeService {
     return hash.digest("hex");
   }
 }
+

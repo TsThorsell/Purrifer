@@ -1,4 +1,4 @@
-﻿import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const bootstrapAuditManifest: SliceManifest = {
   sliceId: "bootstrap-audit",
@@ -13,3 +13,4 @@ export const bootstrapAuditManifest: SliceManifest = {
     }
   ]
 };
+

@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateFeatureRegistry } from "./generate-feature-registry.mjs";
+import { buildMain, buildPreload, startRendererDevServer } from "./vite-pipeline.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,28 +14,26 @@ const electronExecPath = path.join(
   "dist",
   "electron.exe"
 );
-const cliPath = path.join(
-  projectRoot,
-  "node_modules",
-  "electron-vite",
-  "dist",
-  "cli.mjs"
-);
+generateFeatureRegistry(projectRoot);
+await buildMain(projectRoot, "development");
+await buildPreload(projectRoot, "development");
+const { server, url } = await startRendererDevServer(projectRoot);
 
 const child = spawn(
-  process.execPath,
-  [cliPath, "dev"],
+  electronExecPath,
+  [path.join(projectRoot, "dist-electron", "main", "index.js")],
   {
     cwd: projectRoot,
     stdio: "inherit",
     env: {
       ...process.env,
-      ELECTRON_EXEC_PATH: electronExecPath
+      ELECTRON_RENDERER_URL: url
     }
   }
 );
 
 child.on("exit", (code) => {
+  server.close().catch(() => undefined);
   process.exit(code ?? 0);
 });
 

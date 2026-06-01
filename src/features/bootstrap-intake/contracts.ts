@@ -68,3 +68,4 @@ export const bootstrapIntakeChannels = {
   listBatches: "bootstrap-intake:list-batches",
   getBatch: "bootstrap-intake:get-batch"
 } as const;
+

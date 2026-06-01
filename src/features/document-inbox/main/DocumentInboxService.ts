@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { FileSequenceStore } from "@app/shared/storage/FileSequenceStore";
 import type {
+  InboxStatus,
   InboxItemDetails,
   InboxItemSummary,
   RawDocumentPayload
@@ -27,6 +28,24 @@ export class DocumentInboxService {
       throw new Error(`Dokument ${documentId} kunde inte hittas i inkorgen.`);
     }
     return item;
+  }
+
+  async setInboxItemStatus(documentId: string, status: InboxStatus): Promise<InboxItemSummary> {
+    const existing = await this.repository.findById(documentId);
+    if (!existing) {
+      throw new Error(`Dokument ${documentId} kunde inte hittas i inkorgen.`);
+    }
+
+    await this.repository.updateStatus(documentId, status);
+    return {
+      documentId: existing.documentId,
+      fileName: existing.fileName,
+      mimeType: existing.mimeType,
+      source: existing.source,
+      receivedAt: existing.receivedAt,
+      status,
+      sizeBytes: existing.sizeBytes
+    };
   }
 
   async selectAndIngestFiles(window: BrowserWindow): Promise<InboxItemSummary[]> {
@@ -144,3 +163,4 @@ function guessMimeType(fileName: string): string {
       return "application/octet-stream";
   }
 }
+

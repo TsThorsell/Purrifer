@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const voucherAndProofManifest: SliceManifest = {
   sliceId: "voucher-and-proof",
@@ -14,4 +14,5 @@ export const voucherAndProofManifest: SliceManifest = {
     { route: "vouchers", label: "Verifikat", sliceId: "voucher-and-proof" }
   ]
 };
+
 

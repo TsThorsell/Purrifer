@@ -9,6 +9,9 @@
 - lista for ataganden
 - detaljvy for atagande
 - skapa/uppdatera for atagande
+- skapa ärenden från åtagande
+- checklista i ärende
+- avvikelsehantering (seed)
 
 ## Tillatna beroenden
 
@@ -22,6 +25,6 @@
 
 ## Begransningar
 
-- ingen arende/checklista i denna version
-- ingen avvikelsemotor i denna version
+- avvikelsegeneratorn är enkel och inte kopplad till notifieringar än
+- ärende-status övergår inte automatiskt med avtalad arbetsflödeslogik
 

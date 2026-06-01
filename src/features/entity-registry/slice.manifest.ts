@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const entityRegistryManifest: SliceManifest = {
   sliceId: "entity-registry",
@@ -7,4 +7,5 @@ export const entityRegistryManifest: SliceManifest = {
   ownedAreas: ["entities", "ownership relations", "accounts"],
   navigation: [{ route: "entity-registry", label: "Entiteter", sliceId: "entity-registry" }]
 };
+
 

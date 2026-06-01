@@ -1,4 +1,4 @@
-﻿import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
+import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type { StageBatchDetails, StageBatchSummary, StageRecordDecision } from "../contracts";
 
 export interface PreprocessPayloadRow {
@@ -176,3 +176,4 @@ export class BootstrapStageRepository {
     };
   }
 }
+

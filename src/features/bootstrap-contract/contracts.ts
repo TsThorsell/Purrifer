@@ -26,3 +26,4 @@ export interface CanonicalValidationResult {
   ok: boolean;
   errors: ValidationError[];
 }
+

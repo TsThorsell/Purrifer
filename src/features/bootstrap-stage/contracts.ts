@@ -1,4 +1,4 @@
-﻿export type StageStatus = "ready" | "needs-review" | "rejected";
+export type StageStatus = "ready" | "needs-review" | "rejected";
 
 export interface StageRunInput {
   preprocessBatchId: string;
@@ -37,3 +37,4 @@ export const bootstrapStageChannels = {
   listStageBatches: "bootstrap-stage:list-batches",
   getStageBatch: "bootstrap-stage:get-batch"
 } as const;
+

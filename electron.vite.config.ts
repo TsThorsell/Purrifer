@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 export default defineConfig({
   main: {
     build: {
+      target: "node20.18",
       outDir: "dist-electron/main",
       rollupOptions: {
         external: ["better-sqlite3"]
@@ -19,6 +20,7 @@ export default defineConfig({
   },
   preload: {
     build: {
+      target: "node20.18",
       outDir: "dist-electron/preload",
       rollupOptions: {
         external: ["better-sqlite3"]

@@ -1,5 +1,5 @@
 import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
-import type { InboxItemDetails, InboxItemSummary } from "../contracts";
+import type { InboxItemDetails, InboxItemSummary, InboxStatus } from "../contracts";
 
 export class JsonDocumentInboxRepository {
   constructor(private readonly sqliteDatabase: SqliteDatabase) {}
@@ -86,4 +86,10 @@ export class JsonDocumentInboxRepository {
       item.textPreview ?? null
     );
   }
+
+  async updateStatus(documentId: string, status: InboxStatus): Promise<void> {
+    const db = await this.sqliteDatabase.open();
+    db.prepare("UPDATE inbox_items SET status = ? WHERE document_id = ?").run(status, documentId);
+  }
 }
+

@@ -7,9 +7,13 @@
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "scripts\\dev.cmd",
-    "build": "electron-vite build",
-    "preview": "electron-vite preview",
+    "build": "node scripts\\build.mjs",
+    "preview": "node scripts\\preview.mjs",
+    "lint:ui": "node scripts/check-ui-classes.mjs",
     "test:architecture": "node --test tests/architecture/*.test.mjs",
+    "test:smoke": "npm run test:pp-027 && npm run test:architecture",
+    "test:smoke:ci": "node --test tests/architecture/pp-027-modular-host-smoke.test.mjs tests/architecture/slices.test.mjs tests/architecture/bootstrap-pipeline-registry.test.mjs tests/architecture/module-contract-validator.test.mjs tests/architecture/route-host-coverage.test.mjs",
+    "test:pp-027": "node --test tests/architecture/pp-027-modular-host-smoke.test.mjs",
     "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3",
     "postinstall": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3"
   },

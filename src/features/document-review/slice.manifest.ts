@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const documentReviewManifest: SliceManifest = {
   sliceId: "document-review",
@@ -8,8 +8,11 @@ export const documentReviewManifest: SliceManifest = {
     "document interpretation",
     "ocr and extraction review",
     "field region adjustment",
-    "template persistence"
+    "template persistence",
+    "review decision routing",
+    "decision audit trail"
   ],
   navigation: [{ route: "document-review", label: "Granskning", sliceId: "document-review" }]
 };
+
 

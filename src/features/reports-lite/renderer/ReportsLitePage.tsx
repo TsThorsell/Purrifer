@@ -1,5 +1,5 @@
-﻿import { useState } from "react";
-import type { SearchNavigationTarget } from "@features/search-and-index/contracts";
+import { useMemo, useState } from "react";
+import type { SearchNavigationTarget } from "@app/registry/routeHostTypes";
 import type {
   BudgetComparisonResult,
   EntityBalanceSnapshot,
@@ -7,6 +7,7 @@ import type {
   PeriodDecisionView,
   YearOverYearComparisonResult
 } from "../contracts";
+import { Actions, Button, EmptyState, Field, FieldGrid, Page, PageHeader, Panel, SplitLayout, Stack, StatusPill } from "../../../renderer/components/Ui";
 
 interface ReportsLitePageProps {
   onDrilldown: (target: SearchNavigationTarget) => void;
@@ -28,10 +29,29 @@ export function ReportsLitePage({ onDrilldown }: ReportsLitePageProps) {
   const [periodBToDate, setPeriodBToDate] = useState("");
   const [periodDecision, setPeriodDecision] = useState<PeriodDecisionView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ledgerSortMode, setLedgerSortMode] = useState<"date-desc" | "date-asc" | "amount-desc" | "amount-asc">(
+    "date-desc"
+  );
+
+  const visibleLedger = useMemo(
+    () => [...ledger].sort((left, right) => {
+      if (ledgerSortMode === "date-asc") {
+        return left.date.localeCompare(right.date);
+      }
+      if (ledgerSortMode === "date-desc") {
+        return right.date.localeCompare(left.date);
+      }
+      if (ledgerSortMode === "amount-desc") {
+        return right.amount - left.amount;
+      }
+      return left.amount - right.amount;
+    }),
+    [ledger, ledgerSortMode]
+  );
 
   async function loadReport() {
     if (!entityId.trim()) {
-      setError("Ange entityId for att hamta rapport.");
+      setError("Ange entityId för att hämta rapport.");
       return;
     }
 
@@ -51,13 +71,13 @@ export function ReportsLitePage({ onDrilldown }: ReportsLitePageProps) {
       setBudgetComparison(budgetResult);
       setYearOverYear(yoyResult);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte hamta rapport.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte hämta rapport.");
     }
   }
 
   async function loadPeriodDecision() {
     if (!entityId.trim()) {
-      setError("Ange entityId for periodjamforelse.");
+      setError("Ange entityId för periodjämförelse.");
       return;
     }
     setError(null);
@@ -71,208 +91,180 @@ export function ReportsLitePage({ onDrilldown }: ReportsLitePageProps) {
       );
       setPeriodDecision(result);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte hamta period-beslutsvy.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte hämta period-beslutsvy.");
+    }
+  }
+
+  async function copyPeriodCsvToClipboard() {
+    if (!periodDecision?.exportCsv) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(periodDecision.exportCsv);
+    } catch {
+      setError("Kunde inte kopiera CSV till urklipp. Välj och kopiera manuellt.");
     }
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Reports Lite</p>
-          <h2>Transaktionsjournal och balansoversikt</h2>
-          <p className="muted">Forenklad rapportv1 per entitet med drilldown till underlag.</p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader eyebrow="Reports Lite" title="Transaktionsjournal och balansöversikt" description="Förenklad rapportvy per entitet med drilldown till underlag." />
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      <Panel title="Filter">
+        <FieldGrid>
+          <Field label="Entity Id"><input value={entityId} onChange={(event) => setEntityId(event.target.value)} placeholder="E000001" /></Field>
+          <Field label="Från datum"><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></Field>
+          <Field label="Till datum"><input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></Field>
+          <Field label="År"><input value={year} onChange={(event) => setYear(event.target.value)} /></Field>
+          <Field label="Månad (valfri)"><input value={month} onChange={(event) => setMonth(event.target.value)} placeholder="1-12" /></Field>
+        </FieldGrid>
+        <Actions><Button onClick={() => void loadReport()}>Hämta rapport</Button></Actions>
+      </Panel>
 
-      <section className="panel-card">
-        <div className="detail-grid">
-          <div>
-            <p className="detail-label">Entity Id</p>
-            <input value={entityId} onChange={(event) => setEntityId(event.target.value)} placeholder="E000001" />
-          </div>
-          <div>
-            <p className="detail-label">Fran datum</p>
-            <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
-          </div>
-          <div>
-            <p className="detail-label">Till datum</p>
-            <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
-          </div>
-          <div>
-            <p className="detail-label">Ar</p>
-            <input value={year} onChange={(event) => setYear(event.target.value)} />
-          </div>
-          <div>
-            <p className="detail-label">Manad (valfri)</p>
-            <input value={month} onChange={(event) => setMonth(event.target.value)} placeholder="1-12" />
-          </div>
-          <div className="detail-actions">
-            <button className="primary-button" type="button" onClick={() => void loadReport()}>
-              Hamta rapport
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Balansoversikt</h3>
-            <span className="status-pill neutral">{balance ? balance.entityId : "-"}</span>
-          </div>
+      <SplitLayout>
+        <Panel title="Balansöversikt" status={<StatusPill>{balance ? balance.entityId : "-"}</StatusPill>}>
           {balance ? (
-            <div className="detail-grid">
-              <div><p className="detail-label">As of</p><p>{balance.asOfDate}</p></div>
-              <div><p className="detail-label">In</p><p>{balance.inflowTotal.toFixed(2)}</p></div>
-              <div><p className="detail-label">Ut</p><p>{balance.outflowTotal.toFixed(2)}</p></div>
-              <div><p className="detail-label">Netto</p><p>{balance.netTotal.toFixed(2)}</p></div>
-              <div><p className="detail-label">Oppna poster</p><p>{balance.openInvoiceAmount.toFixed(2)}</p></div>
-              <div className="detail-span"><small>{balance.note}</small></div>
-            </div>
+            <FieldGrid>
+              <Field label="As of"><p>{balance.asOfDate}</p></Field>
+              <Field label="In"><p>{balance.inflowTotal.toFixed(2)}</p></Field>
+              <Field label="Ut"><p>{balance.outflowTotal.toFixed(2)}</p></Field>
+              <Field label="Netto"><p>{balance.netTotal.toFixed(2)}</p></Field>
+              <Field label="Öppna poster"><p>{balance.openInvoiceAmount.toFixed(2)}</p></Field>
+              <Field label="Kommentar" className="ui-field-span"><small>{balance.note}</small></Field>
+            </FieldGrid>
           ) : (
-            <p className="muted">Ingen balansdata laddad.</p>
+            <EmptyState>Ingen balansdata laddad.</EmptyState>
           )}
-        </article>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Transaktionsjournal</h3>
-            <span className="status-pill neutral">{ledger.length}</span>
-          </div>
-          <div className="stacked-list">
-            {ledger.map((entry) => (
-              <button
-                key={`${entry.entryType}-${entry.referenceId}`}
-                className="list-card selectable"
-                type="button"
-                onClick={() =>
-                  onDrilldown({
-                    route: entry.drilldownRoute,
-                    objectType: entry.drilldownObjectType,
-                    objectId: entry.drilldownObjectId,
-                    title: `${entry.entryType} ${entry.referenceId}`,
-                    summary: `${entry.amount.toFixed(2)} (${entry.source})`
-                  })
+        <Panel title="Transaktionsjournal" status={<StatusPill>{ledger.length}</StatusPill>}>
+          <FieldGrid>
+            <Field label="Sortera journal">
+              <select
+                value={ledgerSortMode}
+                onChange={(event) =>
+                  setLedgerSortMode(
+                    event.target.value as "date-desc" | "date-asc" | "amount-desc" | "amount-asc"
+                  )
                 }
               >
-                <h4>{entry.entryType}</h4>
-                <p className="muted">{entry.date} · {entry.referenceId} · {entry.source}</p>
-                <p>belopp: {entry.amount.toFixed(2)}</p>
-              </button>
-            ))}
-            {ledger.length === 0 ? <p className="muted">Inga journalposter i valda filter.</p> : null}
-          </div>
-        </article>
-      </section>
+                <option value="date-desc">Datum (nyast först)</option>
+                <option value="date-asc">Datum (äldst först)</option>
+                <option value="amount-desc">Belopp (störst först)</option>
+                <option value="amount-asc">Belopp (minst först)</option>
+              </select>
+            </Field>
+          </FieldGrid>
+          {visibleLedger.length > 0 ? (
+            <Stack>
+              {visibleLedger.map((entry) => (
+                <button
+                  key={`${entry.entryType}-${entry.referenceId}`}
+                  className="ui-card selectable"
+                  type="button"
+                  onClick={() =>
+                    onDrilldown({
+                      route: entry.drilldownRoute,
+                      objectType: entry.drilldownObjectType,
+                      objectId: entry.drilldownObjectId,
+                      title: `${entry.entryType} ${entry.referenceId}`,
+                      summary: `${entry.amount.toFixed(2)} (${entry.source})`
+                    })
+                  }
+                >
+                  <h4>{entry.entryType}</h4>
+                  <p className="ui-muted">{entry.date} · {entry.referenceId} · {entry.source}</p>
+                  <p>belopp: {entry.amount.toFixed(2)}</p>
+                </button>
+              ))}
+            </Stack>
+          ) : (
+            <EmptyState>Inga journalposter i valda filter.</EmptyState>
+          )}
+        </Panel>
+      </SplitLayout>
 
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Budget mot utfall</h3>
-            <span className="status-pill neutral">{budgetComparison?.rows.length ?? 0}</span>
-          </div>
+      <SplitLayout>
+        <Panel title="Budget mot utfall" status={<StatusPill>{budgetComparison?.rows.length ?? 0}</StatusPill>}>
           {budgetComparison ? (
             <>
-              <p className="muted">{budgetComparison.note}</p>
-              <div className="stacked-list">
+              <p className="ui-muted">{budgetComparison.note}</p>
+              <Stack>
                 {budgetComparison.rows.map((row) => (
-                  <article key={row.categoryKey} className="list-card">
+                  <article key={row.categoryKey} className="ui-card">
                     <h4>{row.categoryLabel}</h4>
-                    <p className="muted">budget: {row.budgetAmount.toFixed(2)} · utfall: {row.actualAmount.toFixed(2)}</p>
+                    <p className="ui-muted">budget: {row.budgetAmount.toFixed(2)} · utfall: {row.actualAmount.toFixed(2)}</p>
                     <p>avvikelse: {row.varianceAmount.toFixed(2)} ({row.variancePercent.toFixed(2)}%)</p>
-                    {row.uncertainty !== "none" ? <small>osaker data: {row.uncertaintyReason ?? "okand"}</small> : null}
+                    {row.uncertainty !== "none" ? <small>osäker data: {row.uncertaintyReason ?? "okänd"}</small> : null}
                   </article>
                 ))}
-              </div>
+              </Stack>
             </>
           ) : (
-            <p className="muted">Ingen budgetjamforelse laddad.</p>
+            <EmptyState>Ingen budgetjämförelse laddad.</EmptyState>
           )}
-        </article>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Ar-jamforelse</h3>
-            <span className="status-pill neutral">{yearOverYear?.rows.length ?? 0}</span>
-          </div>
+        <Panel title="År-jämförelse" status={<StatusPill>{yearOverYear?.rows.length ?? 0}</StatusPill>}>
           {yearOverYear ? (
             <>
-              <p className="muted">{yearOverYear.note}</p>
-              <div className="stacked-list">
+              <p className="ui-muted">{yearOverYear.note}</p>
+              <Stack>
                 {yearOverYear.rows.map((row) => (
-                  <article key={row.categoryKey} className="list-card">
+                  <article key={row.categoryKey} className="ui-card">
                     <h4>{row.categoryLabel}</h4>
-                    <p className="muted">nu: {row.currentAmount.toFixed(2)} · foregaende ar: {row.previousAmount.toFixed(2)}</p>
+                    <p className="ui-muted">nu: {row.currentAmount.toFixed(2)} · föregående år: {row.previousAmount.toFixed(2)}</p>
                     <p>delta: {row.deltaAmount.toFixed(2)} ({row.deltaPercent.toFixed(2)}%)</p>
-                    {row.uncertainty !== "none" ? <small>osaker data: {row.uncertaintyReason ?? "okand"}</small> : null}
+                    {row.uncertainty !== "none" ? <small>osäker data: {row.uncertaintyReason ?? "okänd"}</small> : null}
                   </article>
                 ))}
-              </div>
+              </Stack>
             </>
           ) : (
-            <p className="muted">Ingen ar-jamforelse laddad.</p>
+            <EmptyState>Ingen år-jämförelse laddad.</EmptyState>
           )}
-        </article>
-      </section>
+        </Panel>
+      </SplitLayout>
 
-      <section className="panel-card">
-        <div className="panel-topline">
-          <h3>Periodjamforelse (beslutsvy)</h3>
-          <span className="status-pill neutral">{periodDecision?.rows.length ?? 0}</span>
-        </div>
-        <div className="detail-grid">
-          <div>
-            <p className="detail-label">Period A fran</p>
-            <input type="date" value={periodAFromDate} onChange={(event) => setPeriodAFromDate(event.target.value)} />
-          </div>
-          <div>
-            <p className="detail-label">Period A till</p>
-            <input type="date" value={periodAToDate} onChange={(event) => setPeriodAToDate(event.target.value)} />
-          </div>
-          <div>
-            <p className="detail-label">Period B fran</p>
-            <input type="date" value={periodBFromDate} onChange={(event) => setPeriodBFromDate(event.target.value)} />
-          </div>
-          <div>
-            <p className="detail-label">Period B till</p>
-            <input type="date" value={periodBToDate} onChange={(event) => setPeriodBToDate(event.target.value)} />
-          </div>
-          <div className="detail-actions">
-            <button className="secondary-button" type="button" onClick={() => void loadPeriodDecision()}>
-              Hamta beslutsvy
-            </button>
-          </div>
-        </div>
+      <Panel title="Periodjämförelse (beslutsvy)" status={<StatusPill>{periodDecision?.rows.length ?? 0}</StatusPill>}>
+        <FieldGrid>
+          <Field label="Period A från"><input type="date" value={periodAFromDate} onChange={(event) => setPeriodAFromDate(event.target.value)} /></Field>
+          <Field label="Period A till"><input type="date" value={periodAToDate} onChange={(event) => setPeriodAToDate(event.target.value)} /></Field>
+          <Field label="Period B från"><input type="date" value={periodBFromDate} onChange={(event) => setPeriodBFromDate(event.target.value)} /></Field>
+          <Field label="Period B till"><input type="date" value={periodBToDate} onChange={(event) => setPeriodBToDate(event.target.value)} /></Field>
+        </FieldGrid>
+        <Actions><Button tone="secondary" onClick={() => void loadPeriodDecision()}>Hämta beslutsvy</Button></Actions>
         {periodDecision ? (
           <>
-            <p className="muted">{periodDecision.note}</p>
-            <div className="stacked-list">
+            <p className="ui-muted">{periodDecision.note}</p>
+            <Stack>
               {periodDecision.rows.map((row) => (
-                <article key={row.categoryKey} className="list-card">
+                <article key={row.categoryKey} className="ui-card">
                   <h4>{row.categoryLabel}</h4>
-                  <p className="muted">A: {row.periodAAmount.toFixed(2)} · B: {row.periodBAmount.toFixed(2)}</p>
+                  <p className="ui-muted">A: {row.periodAAmount.toFixed(2)} · B: {row.periodBAmount.toFixed(2)}</p>
                   <p>delta: {row.deltaAmount.toFixed(2)} ({row.deltaPercent.toFixed(2)}%)</p>
-                  {row.uncertainty !== "none" ? <small>osaker data: {row.uncertaintyReason ?? "okand"}</small> : null}
+                  {row.uncertainty !== "none" ? <small>osäker data: {row.uncertaintyReason ?? "okänd"}</small> : null}
                 </article>
               ))}
-            </div>
-            <div className="detail-grid">
-              <div><p className="detail-label">Total A</p><p>{periodDecision.totals.periodAAmount.toFixed(2)}</p></div>
-              <div><p className="detail-label">Total B</p><p>{periodDecision.totals.periodBAmount.toFixed(2)}</p></div>
-              <div><p className="detail-label">Total delta</p><p>{periodDecision.totals.deltaAmount.toFixed(2)} ({periodDecision.totals.deltaPercent.toFixed(2)}%)</p></div>
-              <div className="detail-span">
-                <p className="detail-label">Export (CSV)</p>
+            </Stack>
+            <FieldGrid>
+              <Field label="Total A"><p>{periodDecision.totals.periodAAmount.toFixed(2)}</p></Field>
+              <Field label="Total B"><p>{periodDecision.totals.periodBAmount.toFixed(2)}</p></Field>
+              <Field label="Total delta"><p>{periodDecision.totals.deltaAmount.toFixed(2)} ({periodDecision.totals.deltaPercent.toFixed(2)}%)</p></Field>
+              <Field label="Export (CSV)" className="ui-field-span">
                 <textarea value={periodDecision.exportCsv} readOnly rows={8} />
-              </div>
-            </div>
+              </Field>
+            </FieldGrid>
+            <Actions>
+              <Button tone="secondary" onClick={() => void copyPeriodCsvToClipboard()}>Kopiera CSV till urklipp</Button>
+            </Actions>
           </>
         ) : (
-          <p className="muted">Ingen periodjamforelse laddad.</p>
+          <EmptyState>Ingen periodjämförelse laddad.</EmptyState>
         )}
-      </section>
-    </section>
+      </Panel>
+    </Page>
   );
 }
+

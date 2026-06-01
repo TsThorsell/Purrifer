@@ -13,6 +13,12 @@ import type {
   ObligationSummary,
   UpdateObligationInput
 } from "../contracts";
+import { Actions, Button, EmptyState, Field, FieldGrid, Page, PageHeader, Panel, SplitLayout, Stack, StatusPill } from "../../../renderer/components/Ui";
+
+interface ObligationsAndCasesPageProps {
+  initialCaseId?: string;
+  initialObligationId?: string;
+}
 
 const statusOptions: ObligationStatus[] = [
   "draft",
@@ -32,7 +38,7 @@ const caseStatusOptions: CaseStatus[] = [
   "archived"
 ];
 
-export function ObligationsAndCasesPage() {
+export function ObligationsAndCasesPage({ initialCaseId, initialObligationId }: ObligationsAndCasesPageProps) {
   const [items, setItems] = useState<ObligationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<ObligationDetails | null>(null);
@@ -54,16 +60,48 @@ export function ObligationsAndCasesPage() {
   async function refresh(preferredId?: string) {
     const next = await window.purrifer.obligationsAndCases.listObligations();
     setItems(next);
+
     const pick = preferredId ?? selectedId ?? next[0]?.obligationId ?? null;
     setSelectedId(pick);
+
+    if (preferredId) {
+      return;
+    }
+
+    if (!preferredId && preferredId !== "") {
+      const fallback = next[0]?.obligationId ?? null;
+      setSelectedId(fallback);
+    }
   }
 
   useEffect(() => {
-    void refresh().catch((reason: unknown) =>
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa ataganden.")
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!initialCaseId && !initialObligationId) {
+      void refresh().catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : "Kunde inte läsa åtaganden.")
+      );
+      return;
+    }
+
+    if (initialCaseId) {
+      void window.purrifer.obligationsAndCases
+        .getCaseDetails(initialCaseId)
+        .then((caseItem) => {
+          setSelectedCaseId(initialCaseId);
+          void refresh(caseItem.obligationId);
+        })
+        .catch(() => {
+          setError("Kunde inte öppna ärendet från sökträffen.");
+        });
+      return;
+    }
+
+    if (initialObligationId) {
+      void refresh(initialObligationId).catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : "Kunde inte läsa åtaganden.")
+      );
+      return;
+    }
+  }, [initialCaseId, initialObligationId]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -81,7 +119,7 @@ export function ObligationsAndCasesPage() {
         setStatus(item.status);
       })
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "Kunde inte lasa atagandedetalj.")
+        setError(reason instanceof Error ? reason.message : "Kunde inte läsa åtagandedetalj.")
       );
   }, [selectedId]);
 
@@ -96,13 +134,15 @@ export function ObligationsAndCasesPage() {
       .listCases(selectedId)
       .then((nextCases) => {
         setCases(nextCases);
-        const pick = nextCases[0]?.caseId ?? null;
-        setSelectedCaseId(pick);
+        if (selectedCaseId && nextCases.some((item) => item.caseId === selectedCaseId)) {
+          return;
+        }
+        setSelectedCaseId(nextCases[0]?.caseId ?? null);
       })
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "Kunde inte lasa arenden.")
+        setError(reason instanceof Error ? reason.message : "Kunde inte läsa ärenden.")
       );
-  }, [selectedId]);
+  }, [selectedId, selectedCaseId]);
 
   useEffect(() => {
     if (!selectedCaseId) {
@@ -121,16 +161,16 @@ export function ObligationsAndCasesPage() {
         setCaseStatus(item.status);
       })
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "Kunde inte lasa arendedetalj.")
+        setError(reason instanceof Error ? reason.message : "Kunde inte läsa ärendedetalj.")
       );
   }, [selectedCaseId]);
 
   useEffect(() => {
     void window.purrifer.obligationsAndCases
       .listDeviationCases()
-      .then((items) => setDeviationCases(items))
+      .then(setDeviationCases)
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "Kunde inte lasa avvikelser.")
+        setError(reason instanceof Error ? reason.message : "Kunde inte läsa avvikelser.")
       );
   }, []);
 
@@ -147,7 +187,7 @@ export function ObligationsAndCasesPage() {
       const created = await window.purrifer.obligationsAndCases.createObligation(input);
       await refresh(created.obligationId);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte skapa atagande.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte skapa åtagande.");
     }
   }
 
@@ -155,6 +195,7 @@ export function ObligationsAndCasesPage() {
     if (!selectedId) {
       return;
     }
+
     setError(null);
     try {
       const input: UpdateObligationInput = {
@@ -168,7 +209,7 @@ export function ObligationsAndCasesPage() {
       const updated = await window.purrifer.obligationsAndCases.updateObligation(input);
       await refresh(updated.obligationId);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte uppdatera atagande.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte uppdatera åtagande.");
     }
   }
 
@@ -176,6 +217,7 @@ export function ObligationsAndCasesPage() {
     if (!selectedId) {
       return;
     }
+
     const nextCases = await window.purrifer.obligationsAndCases.listCases(selectedId);
     setCases(nextCases);
     const pick = preferredCaseId ?? selectedCaseId ?? nextCases[0]?.caseId ?? null;
@@ -184,7 +226,7 @@ export function ObligationsAndCasesPage() {
 
   async function createCase() {
     if (!selectedId) {
-      setError("Valj ett atagande innan du skapar arende.");
+      setError("Välj ett åtagande innan du skapar ärende.");
       return;
     }
     setError(null);
@@ -198,7 +240,7 @@ export function ObligationsAndCasesPage() {
       const created = await window.purrifer.obligationsAndCases.createCase(input);
       await refreshCases(created.caseId);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte skapa arende.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte skapa ärende.");
     }
   }
 
@@ -206,6 +248,7 @@ export function ObligationsAndCasesPage() {
     if (!selectedCaseId) {
       return;
     }
+
     setError(null);
     try {
       const updated = await window.purrifer.obligationsAndCases.updateCase({
@@ -216,13 +259,13 @@ export function ObligationsAndCasesPage() {
       });
       await refreshCases(updated.caseId);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte uppdatera arende.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte uppdatera ärende.");
     }
   }
 
   async function createChecklistItem() {
     if (!selectedCaseId) {
-      setError("Valj ett arende innan checklistepunkt skapas.");
+      setError("Välj ett ärende innan checklistepunkt skapas.");
       return;
     }
     setError(null);
@@ -256,68 +299,57 @@ export function ObligationsAndCasesPage() {
     setError(null);
     try {
       await window.purrifer.obligationsAndCases.runDeviationScan();
-      const items = await window.purrifer.obligationsAndCases.listDeviationCases();
-      setDeviationCases(items);
+      setDeviationCases(await window.purrifer.obligationsAndCases.listDeviationCases());
       if (selectedId) {
         await refreshCases(selectedCaseId ?? undefined);
       }
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte kora avvikelsekontroll.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte köra avvikelsekontroll.");
     }
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Obligations and Cases</p>
-          <h2>Ataganden</h2>
-          <p className="muted">Skapa, uppdatera och folj status for ataganden i v1.</p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Obligations and Cases"
+        title="Åtaganden"
+        description="Skapa, uppdatera och följ status för åtaganden i v1."
+      />
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      {error ? <div className="error-banner">{error}</div> : null}
-
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Atagandelista</h3>
-            <span className="status-pill neutral">{items.length}</span>
-          </div>
-          <div className="stacked-list">
+      <SplitLayout>
+        <Panel title="Åtagandelista" status={<StatusPill>{items.length}</StatusPill>}>
+          <Stack>
             {items.map((item) => (
               <button
                 key={item.obligationId}
-                className={item.obligationId === selectedId ? "list-card selectable selected" : "list-card selectable"}
+                className={
+                  item.obligationId === selectedId ? "ui-card selectable selected" : "ui-card selectable"
+                }
                 type="button"
                 onClick={() => setSelectedId(item.obligationId)}
               >
                 <h4>{item.title}</h4>
-                <p className="muted">
-                  {item.obligationId} · {item.status}
-                </p>
+                <p className="ui-muted">{item.obligationId} · {item.status}</p>
                 <small>{item.updatedAt}</small>
               </button>
             ))}
-          </div>
-        </article>
+            {items.length === 0 ? <EmptyState>Inga åtaganden ännu.</EmptyState> : null}
+          </Stack>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>{selected ? "Uppdatera atagande" : "Skapa atagande"}</h3>
-            {selected ? <span className="status-pill neutral">{selected.obligationId}</span> : null}
-          </div>
-          <div className="detail-grid">
-            <div className="detail-span">
-              <p className="detail-label">Titel</p>
+        <Panel
+          title={selected ? "Uppdatera åtagande" : "Skapa åtagande"}
+          status={selected ? <StatusPill>{selected.obligationId}</StatusPill> : undefined}
+        >
+          <FieldGrid>
+            <Field label="Titel" className="ui-field-span">
               <input value={title} onChange={(event) => setTitle(event.target.value)} />
-            </div>
-            <div className="detail-span">
-              <p className="detail-label">Beskrivning</p>
+            </Field>
+            <Field label="Beskrivning" className="ui-field-span">
               <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
-            </div>
-            <div>
-              <p className="detail-label">Status</p>
+            </Field>
+            <Field label="Status">
               <select value={status} onChange={(event) => setStatus(event.target.value as ObligationStatus)}>
                 {statusOptions.map((entry) => (
                   <option key={entry} value={entry}>
@@ -325,67 +357,57 @@ export function ObligationsAndCasesPage() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <p className="detail-label">Entity Id</p>
+            </Field>
+            <Field label="Entity Id">
               <input value={entityId} onChange={(event) => setEntityId(event.target.value)} />
-            </div>
-            <div>
-              <p className="detail-label">Forfallodatum</p>
+            </Field>
+            <Field label="Förfallodatum">
               <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
-            </div>
-            <div className="detail-actions">
-              <button className="primary-button" type="button" onClick={() => void createObligation()}>
-                Skapa
-              </button>
-              <button className="secondary-button" type="button" onClick={() => void updateObligation()} disabled={!selectedId}>
-                Uppdatera vald
-              </button>
-            </div>
-          </div>
-        </article>
-      </section>
+            </Field>
+          </FieldGrid>
+          <Actions>
+            <Button onClick={() => void createObligation()}>Skapa</Button>
+            <Button tone="secondary" onClick={() => void updateObligation()} disabled={!selectedId}>
+              Uppdatera vald
+            </Button>
+          </Actions>
+        </Panel>
+      </SplitLayout>
 
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Arenden for valt atagande</h3>
-            <span className="status-pill neutral">{cases.length}</span>
-          </div>
-          <div className="stacked-list">
+      <SplitLayout>
+        <Panel title="Ärenden för valt åtagande" status={<StatusPill>{cases.length}</StatusPill>}>
+          <Stack>
             {cases.map((item) => (
               <button
                 key={item.caseId}
-                className={item.caseId === selectedCaseId ? "list-card selectable selected" : "list-card selectable"}
+                className={item.caseId === selectedCaseId ? "ui-card selectable selected" : "ui-card selectable"}
                 type="button"
                 onClick={() => setSelectedCaseId(item.caseId)}
               >
                 <h4>{item.title}</h4>
-                <p className="muted">
-                  {item.caseId} · {item.status}
+                <p className="ui-muted">
+                  {item.caseId} · {item.status} · {item.obligationId}
                 </p>
                 <small>{item.updatedAt}</small>
               </button>
             ))}
-          </div>
-        </article>
+            {cases.length === 0 ? <EmptyState>Inga ärenden för valt åtagande.</EmptyState> : null}
+          </Stack>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>{selectedCase ? "Uppdatera arende" : "Skapa arende"}</h3>
-            {selectedCase ? <span className="status-pill neutral">{selectedCase.caseId}</span> : null}
-          </div>
-          <div className="detail-grid">
-            <div className="detail-span">
-              <p className="detail-label">Titel</p>
+        <Panel
+          title={selectedCase ? "Uppdatera ärende" : "Skapa ärende"}
+          status={selectedCase ? <StatusPill>{selectedCase.caseId}</StatusPill> : undefined}
+        >
+          {selectedCase ? <p className="ui-muted">Kopplat till åtagande {selectedCase.obligationId}</p> : null}
+          <FieldGrid>
+            <Field label="Titel" className="ui-field-span">
               <input value={caseTitle} onChange={(event) => setCaseTitle(event.target.value)} />
-            </div>
-            <div className="detail-span">
-              <p className="detail-label">Beskrivning</p>
+            </Field>
+            <Field label="Beskrivning" className="ui-field-span">
               <textarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} />
-            </div>
-            <div>
-              <p className="detail-label">Status</p>
+            </Field>
+            <Field label="Status">
               <select value={caseStatus} onChange={(event) => setCaseStatus(event.target.value as CaseStatus)}>
                 {caseStatusOptions.map((entry) => (
                   <option key={entry} value={entry}>
@@ -393,81 +415,70 @@ export function ObligationsAndCasesPage() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="detail-actions">
-              <button className="primary-button" type="button" onClick={() => void createCase()}>
-                Skapa arende
-              </button>
-              <button className="secondary-button" type="button" onClick={() => void updateCase()} disabled={!selectedCaseId}>
-                Uppdatera arende
-              </button>
-            </div>
-            <div className="detail-span">
-              <p className="detail-label">Checklista</p>
-              <div className="stacked-list">
-                {(selectedCase?.checklist ?? []).map((item) => (
-                  <article key={item.checklistItemId} className="list-card">
-                    <div className="panel-topline">
-                      <h4>{item.label}</h4>
-                      <span className="status-pill neutral">
-                        {item.completedAt ? "klar" : "oppen"}
-                      </span>
-                    </div>
-                    <p className="muted">{item.checklistItemId}</p>
-                    <small>{item.completedAt ?? "Ej klar"}</small>
-                    <div className="detail-actions">
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => void completeChecklistItem(item.checklistItemId)}
-                        disabled={Boolean(item.completedAt)}
-                      >
-                        Markera klar
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              <div className="detail-grid">
-                <div className="detail-span">
-                  <p className="detail-label">Ny checklistepunkt</p>
-                  <input value={checklistLabel} onChange={(event) => setChecklistLabel(event.target.value)} />
-                </div>
-                <div className="detail-actions">
-                  <button className="primary-button" type="button" onClick={() => void createChecklistItem()} disabled={!selectedCaseId}>
-                    Skapa checklistepunkt
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
+            </Field>
+          </FieldGrid>
+          <Actions>
+            <Button onClick={() => void createCase()}>Skapa ärende</Button>
+            <Button tone="secondary" onClick={() => void updateCase()} disabled={!selectedCaseId}>
+              Uppdatera ärende
+            </Button>
+          </Actions>
 
-      <section className="panel-card">
-        <div className="panel-topline">
-          <h3>Avvikelsearenden</h3>
-          <span className="status-pill neutral">{deviationCases.length}</span>
-        </div>
-        <div className="detail-actions">
-          <button className="primary-button" type="button" onClick={() => void runDeviationScan()}>
-            Kor avvikelsekontroll
-          </button>
-        </div>
-        <div className="stacked-list">
+          <Panel title="Checklista" status={<StatusPill>{selectedCase?.checklist.length ?? 0}</StatusPill>}>
+            <Stack>
+              {(selectedCase?.checklist ?? []).map((item) => (
+                <article key={item.checklistItemId} className="ui-card">
+                  <div className="ui-card__header">
+                    <div className="ui-card__title-block">
+                      <h4>{item.label}</h4>
+                      <p className="ui-muted">{item.checklistItemId}</p>
+                    </div>
+                    <StatusPill>{item.completedAt ? "klar" : "öppen"}</StatusPill>
+                  </div>
+                  <small>{item.completedAt ?? "Ej klar"}</small>
+                  <Actions>
+                    <Button
+                      tone="secondary"
+                      onClick={() => void completeChecklistItem(item.checklistItemId)}
+                      disabled={Boolean(item.completedAt)}
+                    >
+                      Markera klar
+                    </Button>
+                  </Actions>
+                </article>
+              ))}
+              {(selectedCase?.checklist ?? []).length === 0 ? <EmptyState>Ingen checklista ännu.</EmptyState> : null}
+            </Stack>
+            <FieldGrid>
+              <Field label="Ny checklistepunkt" className="ui-field-span">
+                <input value={checklistLabel} onChange={(event) => setChecklistLabel(event.target.value)} />
+              </Field>
+            </FieldGrid>
+            <Actions>
+              <Button onClick={() => void createChecklistItem()} disabled={!selectedCaseId}>
+                Skapa checklistepunkt
+              </Button>
+            </Actions>
+          </Panel>
+        </Panel>
+      </SplitLayout>
+
+      <Panel
+        title="Avvikelseärenden"
+        status={<StatusPill>{deviationCases.length}</StatusPill>}
+        actions={<Button onClick={() => void runDeviationScan()}>Kör avvikelsekontroll</Button>}
+      >
+        <Stack>
           {deviationCases.map((item) => (
-            <article key={item.caseId} className="list-card">
+            <article key={item.caseId} className="ui-card">
               <h4>{item.title}</h4>
-              <p className="muted">
-                {item.rule} Â· {item.sourceType} Â· {item.sourceId}
-              </p>
-              <small>
-                {item.caseId} Â· {item.status} Â· {item.detectedAt}
-              </small>
+              <p className="ui-muted">{item.rule} · {item.sourceType} · {item.sourceId}</p>
+              <small>{item.caseId} · {item.status} · {item.detectedAt}</small>
             </article>
           ))}
-        </div>
-      </section>
-    </section>
+          {deviationCases.length === 0 ? <EmptyState>Inga aktiva avvikelseärenden.</EmptyState> : null}
+        </Stack>
+      </Panel>
+    </Page>
   );
 }

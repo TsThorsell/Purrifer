@@ -1,5 +1,6 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import type { RawIngestBatchDetails, RawIngestBatchSummary, ScannerCapabilities } from "../contracts";
+import { Actions, Button, EmptyState, Field, FieldGrid, Page, PageHeader, Panel, SplitLayout, Stack, StatusPill } from "../../../renderer/components/Ui";
 
 export function BootstrapIntakePage() {
   const [sourceSystem, setSourceSystem] = useState("manual-folder-import");
@@ -29,14 +30,10 @@ export function BootstrapIntakePage() {
     try {
       const caps = await window.purrifer.bootstrapIntake.getScannerCapabilities();
       setScannerCaps(caps);
-      if (!caps.supportsDuplex) {
-        setScanMode("simplex");
-      }
-      if (!caps.supportsAdf) {
-        setFeederMode("flatbed");
-      }
+      if (!caps.supportsDuplex) setScanMode("simplex");
+      if (!caps.supportsAdf) setFeederMode("flatbed");
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa scannerkapabiliteter.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa scannerkapabiliteter.");
     }
   }
 
@@ -64,92 +61,77 @@ export function BootstrapIntakePage() {
       const batch = await window.purrifer.bootstrapIntake.getBatch(ingestBatchId);
       setSelectedBatch(batch);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa batch.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa batch.");
     }
   }
 
   const shownBatch = latestBatch ?? selectedBatch;
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Bootstrap Intake</p>
-          <h2>Starta batchingest till råzon</h2>
-          <p className="muted">Valj en eller flera lokala mappar. Systemet hashar filer och markerar duplikat innan preprocess.</p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Bootstrap Intake"
+        title="Starta batchingest till råzon"
+        description="Välj mappar eller skanna direkt. Systemet hashar filer och markerar duplikat innan preprocess."
+      />
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      <section className="panel-card">
-        <div className="field-grid">
-          <label className="field-label" htmlFor="source-system">source_system</label>
-          <input
-            id="source-system"
-            className="text-input"
-            value={sourceSystem}
-            onChange={(event) => setSourceSystem(event.target.value)}
-          />
-        </div>
-        <div className="detail-actions">
-          <button className="primary-button" type="button" onClick={() => void startBatchIngest()}>
-            Starta batchingest
-          </button>
-          <button className="secondary-button" type="button" onClick={() => void detectScanner()}>
-            Las scannerkapabiliteter
-          </button>
-          <button className="primary-button" type="button" onClick={() => void scanToBatch()}>
-            Scan to Batch
-          </button>
-          <button className="secondary-button" type="button" onClick={() => void refreshBatches()}>
-            Uppdatera batchlista
-          </button>
-        </div>
+      <Panel title="Inmatning">
+        <FieldGrid>
+          <Field label="source_system">
+            <input value={sourceSystem} onChange={(event) => setSourceSystem(event.target.value)} />
+          </Field>
+        </FieldGrid>
+        <Actions>
+          <Button onClick={() => void startBatchIngest()}>Starta batchingest</Button>
+          <Button tone="secondary" onClick={() => void detectScanner()}>Läs scannerkapabiliteter</Button>
+          <Button onClick={() => void scanToBatch()}>Scan to Batch</Button>
+          <Button tone="secondary" onClick={() => void refreshBatches()}>Uppdatera batchlista</Button>
+        </Actions>
         {scannerCaps ? (
-          <div className="stacked-list">
+          <Stack>
             <small>scanner: {scannerCaps.deviceName} · profile: {scannerCaps.profile} · driver: {scannerCaps.driver}</small>
-            <small>ADF: {scannerCaps.supportsAdf ? "stods" : "saknas"} · duplex: {scannerCaps.supportsDuplex ? "stods" : "saknas"}</small>
-            <small>valt lage: {feederMode}/{scanMode}</small>
-          </div>
+            <small>ADF: {scannerCaps.supportsAdf ? "stöds" : "saknas"} · duplex: {scannerCaps.supportsDuplex ? "stöds" : "saknas"}</small>
+            <small>valt läge: {feederMode}/{scanMode}</small>
+          </Stack>
         ) : null}
-      </section>
+      </Panel>
 
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Batches</h3>
-            <span className="status-pill neutral">{batches.length}</span>
-          </div>
-          <div className="stacked-list">
-            {batches.map((batch) => (
-              <button
-                key={batch.ingestBatchId}
-                className="list-card selectable"
-                type="button"
-                onClick={() => void openBatch(batch.ingestBatchId)}
-              >
-                <h4>{batch.ingestBatchId}</h4>
-                <p className="muted">{batch.sourceSystem} · {batch.createdAt}</p>
-                {batch.scannerDeviceName ? <small>{batch.scannerDeviceName} · {batch.scannerProfile ?? "-"}</small> : null}
-                <small>filer {batch.totalDiscovered} · nya {batch.totalNew} · duplikat {batch.totalDuplicates} · fel {batch.totalErrors}</small>
-              </button>
-            ))}
-            {batches.length === 0 ? <p className="muted">Inga ingestbatcher an.</p> : null}
-          </div>
-        </article>
+      <SplitLayout>
+        <Panel title="Batches" status={<StatusPill>{batches.length}</StatusPill>}>
+          {batches.length > 0 ? (
+            <Stack>
+              {batches.map((batch) => (
+                <button
+                  key={batch.ingestBatchId}
+                  className="ui-card selectable"
+                  type="button"
+                  onClick={() => void openBatch(batch.ingestBatchId)}
+                >
+                  <div className="ui-card__header">
+                    <div className="ui-card__title-block">
+                      <h4>{batch.ingestBatchId}</h4>
+                      <p className="ui-muted">{batch.sourceSystem} · {batch.createdAt}</p>
+                    </div>
+                  </div>
+                  {batch.scannerDeviceName ? <small>{batch.scannerDeviceName} · {batch.scannerProfile ?? "-"}</small> : null}
+                  <small>filer {batch.totalDiscovered} · nya {batch.totalNew} · duplikat {batch.totalDuplicates} · fel {batch.totalErrors}</small>
+                </button>
+              ))}
+            </Stack>
+          ) : (
+            <EmptyState>Inga ingestbatcher ännu.</EmptyState>
+          )}
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Upptäckta filer</h3>
-            <span className="status-pill neutral">{shownBatch?.files.length ?? 0}</span>
-          </div>
+        <Panel title="Upptäckta filer" status={<StatusPill>{shownBatch?.files.length ?? 0}</StatusPill>}>
           {shownBatch ? (
-            <div className="stacked-list">
+            <Stack>
               {shownBatch.files.map((file) => (
-                <article key={`${shownBatch.ingestBatchId}-${file.fullPath}`} className="list-card">
+                <article key={`${shownBatch.ingestBatchId}-${file.fullPath}`} className="ui-card">
                   <h4>{file.fullPath}</h4>
-                  <p className="muted">{file.fileType} · {file.sizeBytes} bytes</p>
+                  <p className="ui-muted">{file.fileType} · {file.sizeBytes} bytes</p>
                   <small>
                     status: {file.status}
                     {file.duplicateScope ? ` (${file.duplicateScope})` : ""}
@@ -159,12 +141,13 @@ export function BootstrapIntakePage() {
                   </small>
                 </article>
               ))}
-            </div>
+            </Stack>
           ) : (
-            <p className="muted">Ingen batch vald.</p>
+            <EmptyState>Ingen batch vald.</EmptyState>
           )}
-        </article>
-      </section>
-    </section>
+        </Panel>
+      </SplitLayout>
+    </Page>
   );
 }
+

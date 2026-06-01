@@ -8,6 +8,7 @@
 
 - val av importfil
 - validerad preview med felmarkering per rad
+- lagring av batch-status (ready/stopped/committed) och stopp/återupptagning
 - lokal lagring av importbatch for fortsatt granskning
 - manuell mappning till Entitet/Konto/objekttyp
 - commit av mappade rader till sparbara importposter

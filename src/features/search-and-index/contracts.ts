@@ -25,16 +25,29 @@ export interface SearchResultItem {
 export interface RebuildSearchIndexResult {
   indexedAt: string;
   indexedCount: number;
+  quality?: SearchIndexQualityReport;
+}
+
+export interface SearchIndexQualityReport {
+  indexedAt: string | null;
+  totalIndexedItems: number;
+  countsByObjectType: Record<SearchObjectType, number>;
+}
+
+export interface SearchIndexApi {
+  getIndexQualityReport(): Promise<SearchIndexQualityReport>;
 }
 
 export interface SearchAndIndexApi {
   searchAll(query: string): Promise<SearchResultItem[]>;
   rebuildSearchIndex(): Promise<RebuildSearchIndexResult>;
+  getIndexQualityReport(): Promise<SearchIndexQualityReport>;
 }
 
 export const searchAndIndexChannels = {
   searchAll: "search-and-index:search-all",
-  rebuildSearchIndex: "search-and-index:rebuild-index"
+  rebuildSearchIndex: "search-and-index:rebuild-index",
+  getIndexQualityReport: "search-and-index:get-index-quality-report"
 } as const;
 
 export interface SearchNavigationTarget {
@@ -44,3 +57,4 @@ export interface SearchNavigationTarget {
   title?: string;
   summary?: string;
 }
+

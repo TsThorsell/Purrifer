@@ -1,4 +1,4 @@
-﻿import { readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { dialog, type BrowserWindow } from "electron";
 import { AppError } from "@app/shared/errors/AppError";
@@ -6,6 +6,7 @@ import { FileSequenceStore } from "@app/shared/storage/FileSequenceStore";
 import * as XLSX from "xlsx";
 import type {
   ImportBatchDetails,
+  ImportBatchStatus,
   ImportBatchSummary,
   ImportCommitResult,
   ImportFileType,
@@ -41,7 +42,7 @@ export class TransactionImportService {
     const extension = path.extname(filePath).toLowerCase();
     const fileType: ImportFileType = extension === ".xlsx" ? "xlsx" : "csv";
     const rows = fileType === "csv" ? await this.parseCsv(filePath) : await this.parseXlsx(filePath);
-
+    const batchStatus: ImportBatchStatus = "ready";
     const batchId = await this.sequenceStore.next("IB");
     const importedAt = this.nowProvider().toISOString();
 
@@ -49,6 +50,8 @@ export class TransactionImportService {
       batchId,
       fileName,
       fileType,
+      source: fileName,
+      status: batchStatus,
       importedAt,
       rows
     });
@@ -103,8 +106,54 @@ export class TransactionImportService {
     return { batch, entities, accounts, rows };
   }
 
+  async stopImportBatch(batchId: string, reason?: string): Promise<ImportBatchDetails> {
+    const batch = await this.getImportBatch(batchId);
+    if (batch.status === "committed") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_ALREADY_COMMITTED",
+        message: `Importbatch ${batch.batchId} är redan committad och kan inte stoppas.`,
+        type: "business"
+      });
+    }
+    if (batch.status === "stopped") {
+      return batch;
+    }
+
+    await this.repository.updateBatchStatus(
+      batchId,
+      "stopped",
+      reason?.trim() ? reason.trim() : "Import pausad av användare."
+    );
+    return this.getImportBatch(batchId);
+  }
+
+  async resumeImportBatch(batchId: string): Promise<ImportBatchDetails> {
+    const batch = await this.getImportBatch(batchId);
+    if (batch.status === "ready") {
+      return batch;
+    }
+    if (batch.status === "committed") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_ALREADY_COMMITTED",
+        message: `Importbatch ${batch.batchId} är redan committad och behöver inte återupptas.`,
+        type: "business"
+      });
+    }
+    if (batch.status !== "stopped") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_INVALID_STATUS",
+        message: `Importbatch ${batch.batchId} har status '${batch.status}' och kan inte återupptas.`,
+        type: "business"
+      });
+    }
+
+    await this.repository.updateBatchStatus(batchId, "ready", null);
+    return this.getImportBatch(batchId);
+  }
+
   async saveImportRowMapping(input: SaveImportRowMappingInput): Promise<ImportRowMapping> {
     const batch = await this.getImportBatch(input.batchId);
+    this.assertBatchCanMutate(batch);
     const row = batch.rows.find((item) => item.rowNumber === input.rowNumber);
     if (!row) {
       throw new AppError({
@@ -156,6 +205,8 @@ export class TransactionImportService {
 
   async commitImportBatch(batchId: string): Promise<ImportCommitResult> {
     const review = await this.getImportReview(batchId);
+    this.assertBatchCanCommit(review.batch);
+
     const committedRows = review.rows
       .filter((row) => row.isValid && row.isMapped && row.mapping)
       .map((row) => ({
@@ -196,6 +247,40 @@ export class TransactionImportService {
       committedRows: committedRows.length,
       rows: committedRows
     };
+  }
+
+  private assertBatchCanMutate(batch: ImportBatchDetails): void {
+    if (batch.status === "stopped") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_STOPPED",
+        message: `Importbatch ${batch.batchId} är stoppad och kan inte uppdateras.`,
+        type: "business"
+      });
+    }
+    if (batch.status === "committed") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_ALREADY_COMMITTED",
+        message: `Importbatch ${batch.batchId} är redan committad och kan inte uppdateras.`,
+        type: "business"
+      });
+    }
+  }
+
+  private assertBatchCanCommit(batch: ImportBatchDetails): void {
+    if (batch.status === "stopped") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_STOPPED",
+        message: `Importbatch ${batch.batchId} är stoppad och kan inte committas.`,
+        type: "business"
+      });
+    }
+    if (batch.status === "committed") {
+      throw new AppError({
+        code: "BUSINESS_IMPORT_BATCH_ALREADY_COMMITTED",
+        message: `Importbatch ${batch.batchId} är redan committad.`,
+        type: "business"
+      });
+    }
   }
 
   private async parseCsv(filePath: string): Promise<ImportedTransactionRow[]> {

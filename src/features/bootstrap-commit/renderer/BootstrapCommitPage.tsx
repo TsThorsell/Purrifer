@@ -1,4 +1,15 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import {
+  Button,
+  Field,
+  FieldGrid,
+  Page,
+  PageHeader,
+  Panel,
+  SplitLayout,
+  Stack,
+  StatusPill
+} from "../../../renderer/components/Ui";
 import type { BootstrapCommitResult, BootstrapCommitSummary } from "../contracts";
 
 export function BootstrapCommitPage() {
@@ -14,91 +25,81 @@ export function BootstrapCommitPage() {
       setResult(next);
       await refresh();
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte kora commit.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte köra commit.");
     }
   }
 
   async function refresh() {
-    const list = await window.purrifer.bootstrapCommit.listCommits();
-    setCommits(list);
+    setCommits(await window.purrifer.bootstrapCommit.listCommits());
   }
 
   async function openCommit(commitBatchId: string) {
     setError(null);
     try {
-      const next = await window.purrifer.bootstrapCommit.getCommit(commitBatchId);
-      setResult(next);
+      setResult(await window.purrifer.bootstrapCommit.getCommit(commitBatchId));
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa commitbatch.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa commitbatch.");
     }
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Bootstrap Commit</p>
-          <h2>Commit import till domanobjekt</h2>
-          <p className="muted">Committar en stagebatch till Dokument/Verifikat/Leverantorsfaktura/Betalhandelse och skapar beviskedjelankar.</p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Bootstrap Commit"
+        title="Commit import till domänobjekt"
+        description="Committar en stagebatch till Dokument, Verifikat, Leverantörsfaktura och Betalhändelse samt skapar beviskedjelänkar."
+      />
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      <section className="panel-card">
-        <div className="field-grid">
-          <label className="field-label" htmlFor="commit-stage-batch-id">stage_batch_id</label>
-          <input id="commit-stage-batch-id" className="text-input" value={stageBatchId} onChange={(event) => setStageBatchId(event.target.value)} />
-        </div>
-        <div className="detail-actions">
-          <button className="primary-button" type="button" onClick={() => void runCommit()}>Kor commit</button>
-          <button className="secondary-button" type="button" onClick={() => void refresh()}>Uppdatera lista</button>
-        </div>
-      </section>
-
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Commitbatcher</h3>
-            <span className="status-pill neutral">{commits.length}</span>
+      <Panel title="Commitkörning">
+        <FieldGrid>
+          <Field label="stage_batch_id">
+            <input className="ui-input" value={stageBatchId} onChange={(event) => setStageBatchId(event.target.value)} />
+          </Field>
+          <div className="ui-actions">
+            <Button onClick={() => void runCommit()}>Kör commit</Button>
+            <Button tone="secondary" onClick={() => void refresh()}>Uppdatera lista</Button>
           </div>
-          <div className="stacked-list">
+        </FieldGrid>
+      </Panel>
+
+      <SplitLayout>
+        <Panel title="Commitbatcher" status={<StatusPill>{commits.length}</StatusPill>}>
+          <Stack>
             {commits.map((item) => (
-              <button key={item.commitBatchId} className="list-card selectable" type="button" onClick={() => void openCommit(item.commitBatchId)}>
+              <button key={item.commitBatchId} className="ui-card selectable" type="button" onClick={() => void openCommit(item.commitBatchId)}>
                 <h4>{item.commitBatchId}</h4>
-                <p className="muted">stage: {item.stageBatchId} · {item.committedAt}</p>
+                <p className="ui-muted">stage: {item.stageBatchId} · {item.committedAt}</p>
                 <small>committed: {item.committedCount}</small>
               </button>
             ))}
-            {commits.length === 0 ? <p className="muted">Inga commitbatcher an.</p> : null}
-          </div>
-        </article>
+            {commits.length === 0 ? <p className="ui-muted">Inga commitbatcher än.</p> : null}
+          </Stack>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Committed objects</h3>
-            <span className="status-pill neutral">{result?.committedCount ?? 0}</span>
-          </div>
+        <Panel title="Committed objects" status={<StatusPill>{result?.committedCount ?? 0}</StatusPill>}>
           {result ? (
-            <div className="stacked-list">
-              <article className="list-card">
+            <Stack>
+              <article className="ui-card">
                 <h4>Resultat</h4>
                 <small>
                   eligible: {result.totalEligible} · committed now: {result.committedCount} · redan committed: {result.alreadyCommittedCount} · replayed: {result.replayed ? "ja" : "nej"}
                 </small>
               </article>
               {result.objects.map((obj) => (
-                <article key={`${obj.recordId}-${obj.objectId}`} className="list-card">
+                <article key={`${obj.recordId}-${obj.objectId}`} className="ui-card">
                   <h4>{obj.objectType} · {obj.objectId}</h4>
-                  <p className="muted">record: {obj.recordType} / {obj.recordId}</p>
+                  <p className="ui-muted">record: {obj.recordType} / {obj.recordId}</p>
                 </article>
               ))}
-            </div>
+            </Stack>
           ) : (
-            <p className="muted">Ingen commitbatch vald.</p>
+            <p className="ui-muted">Ingen commitbatch vald.</p>
           )}
-        </article>
-      </section>
-    </section>
+        </Panel>
+      </SplitLayout>
+    </Page>
   );
 }
+

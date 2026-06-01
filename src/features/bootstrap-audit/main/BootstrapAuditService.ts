@@ -1,4 +1,4 @@
-﻿import type { AuditTrailFilter, AuditTrailItem } from "../contracts";
+import type { AuditTrailFilter, AuditTrailItem } from "../contracts";
 import { BootstrapAuditRepository } from "./BootstrapAuditRepository";
 
 export class BootstrapAuditService {
@@ -11,3 +11,4 @@ export class BootstrapAuditService {
     });
   }
 }
+

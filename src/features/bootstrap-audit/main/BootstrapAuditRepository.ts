@@ -1,4 +1,4 @@
-﻿import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
+import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type { AuditTrailItem } from "../contracts";
 
 export class BootstrapAuditRepository {
@@ -66,3 +66,4 @@ export class BootstrapAuditRepository {
     }));
   }
 }
+

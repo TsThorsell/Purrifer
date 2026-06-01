@@ -501,6 +501,124 @@ export class SqliteDatabase {
       }
       db.prepare("INSERT INTO schema_version(version) VALUES (19)").run();
     }
+
+    if (current < 20) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS document_review_decisions (
+          decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id TEXT NOT NULL,
+          decision_status TEXT NOT NULL,
+          reason_code TEXT NOT NULL,
+          note TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          decided_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS ux_document_review_decisions_document
+          ON document_review_decisions(document_id);
+      `);
+      db.prepare("INSERT INTO schema_version(version) VALUES (20)").run();
+    }
+
+    if (current < 21) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS invoice_payment_activity_log (
+          history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          action TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          invoice_id TEXT,
+          payment_id TEXT,
+          amount REAL,
+          before_status TEXT,
+          after_status TEXT,
+          before_matched_amount REAL,
+          after_matched_amount REAL,
+          reason_code TEXT,
+          note TEXT,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_invoice_payment_activity_log_entity
+          ON invoice_payment_activity_log(entity_id, created_at DESC);
+
+        CREATE INDEX IF NOT EXISTS ix_invoice_payment_activity_log_invoice
+          ON invoice_payment_activity_log(invoice_id, created_at DESC);
+
+        CREATE INDEX IF NOT EXISTS ix_invoice_payment_activity_log_payment
+          ON invoice_payment_activity_log(payment_id, created_at DESC);
+
+        CREATE INDEX IF NOT EXISTS ix_invoice_payment_activity_log_action
+          ON invoice_payment_activity_log(action, created_at DESC);
+      `);
+      db.prepare("INSERT INTO schema_version(version) VALUES (21)").run();
+    }
+
+    if (current < 22) {
+      const hasBatchColumn = (columnName: string) =>
+        (db
+          .prepare("SELECT 1 AS ok FROM pragma_table_info('import_batches') WHERE name = ? LIMIT 1")
+          .get(columnName) as { ok?: number } | undefined)?.ok === 1;
+
+      if (!hasBatchColumn("source")) {
+        db.exec("ALTER TABLE import_batches ADD COLUMN source TEXT NOT NULL DEFAULT \"manual-file\"");
+      }
+      if (!hasBatchColumn("status")) {
+        db.exec("ALTER TABLE import_batches ADD COLUMN status TEXT NOT NULL DEFAULT \"ready\"");
+      }
+      if (!hasBatchColumn("status_reason")) {
+        db.exec("ALTER TABLE import_batches ADD COLUMN status_reason TEXT");
+      }
+      db.prepare("INSERT INTO schema_version(version) VALUES (22)").run();
+    }
+
+    if (current < 23) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS voucher_document_relations (
+          voucher_id TEXT NOT NULL,
+          document_id TEXT NOT NULL,
+          relation_type TEXT NOT NULL CHECK (relation_type IN ('primary-source', 'supporting-document')),
+          linked_by TEXT NOT NULL,
+          linked_at TEXT NOT NULL,
+          PRIMARY KEY (voucher_id, document_id, relation_type),
+          FOREIGN KEY (voucher_id) REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+          FOREIGN KEY (document_id) REFERENCES inbox_items(document_id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS voucher_status_history (
+          history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          voucher_id TEXT NOT NULL,
+          previous_status TEXT,
+          new_status TEXT NOT NULL,
+          reason_code TEXT,
+          actor TEXT NOT NULL,
+          changed_at TEXT NOT NULL,
+          FOREIGN KEY (voucher_id) REFERENCES vouchers(voucher_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_voucher_status_history_voucher
+          ON voucher_status_history(voucher_id);
+
+        CREATE INDEX IF NOT EXISTS ix_voucher_status_history_changed_at
+          ON voucher_status_history(changed_at DESC, history_id DESC);
+
+        CREATE INDEX IF NOT EXISTS ix_voucher_document_relations_voucher
+          ON voucher_document_relations(voucher_id, relation_type);
+
+        CREATE INDEX IF NOT EXISTS ix_voucher_document_relations_document
+          ON voucher_document_relations(document_id);
+
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_voucher_document_relations_primary_by_voucher
+          ON voucher_document_relations(voucher_id)
+          WHERE relation_type = 'primary-source';
+
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_voucher_document_relations_primary_by_document
+          ON voucher_document_relations(document_id)
+          WHERE relation_type = 'primary-source';
+      `);
+      db.prepare("INSERT INTO schema_version(version) VALUES (23)").run();
+    }
   }
 }
+
 

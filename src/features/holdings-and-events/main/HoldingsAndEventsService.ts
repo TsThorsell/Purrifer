@@ -1,6 +1,8 @@
 import { AppError } from "@app/shared/errors/AppError";
 import { FileSequenceStore } from "@app/shared/storage/FileSequenceStore";
 import type {
+  HoldingTimelineFilter,
+  HoldingTimelineItem,
   CreateHoldingEventInput,
   CreateHoldingInput,
   HoldingAnalysis,
@@ -95,6 +97,28 @@ export class HoldingsAndEventsService {
     return item;
   }
 
+  async listHoldingTimeline(filter: HoldingTimelineFilter = {}): Promise<HoldingTimelineItem[]> {
+    const normalizedFilter: HoldingTimelineFilter = {
+      holdingId: filter.holdingId?.trim(),
+      entityId: filter.entityId?.trim(),
+      eventType: filter.eventType,
+      fromEventDate: filter.fromEventDate?.trim(),
+      toEventDate: filter.toEventDate?.trim()
+    };
+
+    if (normalizedFilter.fromEventDate && normalizedFilter.toEventDate) {
+      if (normalizedFilter.fromEventDate > normalizedFilter.toEventDate) {
+        throw new AppError({
+          code: "BUSINESS_HOLDING_EVENT_DATE_RANGE_INVALID",
+          message: "fromEventDate får inte vara efter toEventDate.",
+          type: "business"
+        });
+      }
+    }
+
+    return this.repository.listHoldingTimeline(normalizedFilter);
+  }
+
   async getHoldingAnalysis(holdingId: string): Promise<HoldingAnalysis> {
     const holding = await this.getHoldingDetails(holdingId);
     const deposits = holding.timeline.filter((event) => event.eventType === "deposit");
@@ -134,3 +158,4 @@ export class HoldingsAndEventsService {
     };
   }
 }
+

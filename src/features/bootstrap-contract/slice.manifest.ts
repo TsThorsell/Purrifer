@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const bootstrapContractManifest: SliceManifest = {
   sliceId: "bootstrap-contract",
@@ -7,3 +7,4 @@ export const bootstrapContractManifest: SliceManifest = {
   ownedAreas: ["canonical-import-contract", "schema-validator"],
   navigation: []
 };
+

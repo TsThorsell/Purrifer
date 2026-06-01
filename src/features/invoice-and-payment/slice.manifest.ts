@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const invoiceAndPaymentManifest: SliceManifest = {
   sliceId: "invoice-and-payment",
@@ -13,4 +13,5 @@ export const invoiceAndPaymentManifest: SliceManifest = {
     }
   ]
 };
+
 

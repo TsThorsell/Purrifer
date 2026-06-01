@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const transactionImportManifest: SliceManifest = {
   sliceId: "transaction-import",
@@ -13,3 +13,4 @@ export const transactionImportManifest: SliceManifest = {
     }
   ]
 };
+

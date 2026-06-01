@@ -1,4 +1,4 @@
-﻿import { AppError } from "@app/shared/errors/AppError";
+import { AppError } from "@app/shared/errors/AppError";
 import type { BulkReviewActionInput, ListReviewQueueInput, ReviewActionResult, ReviewQueueItem } from "../contracts";
 import { BootstrapReviewRepository } from "./BootstrapReviewRepository";
 
@@ -66,3 +66,4 @@ export class BootstrapReviewService {
     return { updatedCount };
   }
 }
+

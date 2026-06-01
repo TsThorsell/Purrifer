@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AppRouteKey } from "@app/registry/routes";
 import type { DeviationCaseSummary } from "@features/obligations-and-cases/contracts";
+import { Button, EmptyState, Page, PageHeader, Panel, Stack, StatusPill } from "../../../renderer/components/Ui";
 
 interface LandingPageProps {
   onNavigate: (route: AppRouteKey) => void;
@@ -14,23 +15,23 @@ const panels = [
   },
   {
     title: "Försenat eller avvikande",
-    body: "Denna panel blir platsen för sena betalningar, uteblivna händelser och avvikelseärenden."
+    body: "Sena betalningar, uteblivna händelser och avvikelseärenden samlas här."
   },
   {
     title: "Saknar verifikat eller matchning",
-    body: "Visar poster som har pengar eller dokument men där beviskedjan inte är komplett."
+    body: "Poster med pengar eller dokument där beviskedjan fortfarande är ofullständig."
   },
   {
     title: "Pågående jobb",
-    body: "Bakgrundsjobb som import, OCR och backup ska synas tydligt utan att stoppa arbetet."
+    body: "Import, OCR och andra bakgrundsjobb ska vara synliga utan att skapa brus."
   },
   {
     title: "Kommande deadlines",
-    body: "Här landar åtaganden, fakturor och uppföljning som snart kräver uppmärksamhet."
+    body: "Åtaganden, fakturor och uppföljning som snart kräver uppmärksamhet."
   },
   {
     title: "Översikt per entitet",
-    body: "En framtida panel för snabb status per person, bolag, verksamhet och fastighet."
+    body: "Snabb status per person, bolag, verksamhet och fastighet."
   }
 ];
 
@@ -52,6 +53,16 @@ function formatRuleLabel(rule: DeviationCaseSummary["rule"]): string {
     return "Förfallodatum närmar sig";
   }
   return "Dokument inkom utan åtgärd";
+}
+
+function priorityTone(priority: "high" | "medium" | "low"): "danger" | "warning" | "neutral" {
+  if (priority === "high") {
+    return "danger";
+  }
+  if (priority === "medium") {
+    return "warning";
+  }
+  return "neutral";
 }
 
 export function LandingPage({ onNavigate, onDrilldownDeviation }: LandingPageProps) {
@@ -78,94 +89,92 @@ export function LandingPage({ onNavigate, onDrilldownDeviation }: LandingPagePro
   const deviationPanel = useMemo(() => {
     if (error) {
       return (
-        <article className="panel-card">
-          <h3>Försenat/Avvikande</h3>
-          <p className="muted">{error}</p>
-        </article>
+        <Panel title="Försenat eller avvikande">
+          <p className="ui-muted">{error}</p>
+        </Panel>
       );
     }
 
     if (deviations.length === 0) {
       return (
-        <article className="panel-card">
-          <h3>Försenat/Avvikande</h3>
-          <p>Inga aktiva avvikelser just nu.</p>
-        </article>
+        <Panel title="Försenat eller avvikande">
+          <EmptyState>Inga aktiva avvikelser just nu.</EmptyState>
+        </Panel>
       );
     }
 
     return (
-      <article className="panel-card">
-        <div className="panel-topline">
-          <h3>Försenat/Avvikande</h3>
-          <span className="status-pill neutral">{deviations.length}</span>
-        </div>
-        <div className="stacked-list">
+      <Panel
+        title="Försenat eller avvikande"
+        subtitle="Avvikelser som kräver beslut eller uppföljning."
+        status={<StatusPill tone="warning">{deviations.length} öppna</StatusPill>}
+      >
+        <Stack>
           {deviations.slice(0, 6).map((item) => {
             const priority = getDeviationPriority(item);
             const sourceRef = item.obligationId ?? item.sourceId;
             return (
               <button
                 key={item.caseId}
-                className="list-card selectable"
+                className="ui-card selectable"
                 type="button"
                 onClick={() => onDrilldownDeviation(item)}
               >
-                <h4>{formatRuleLabel(item.rule)}</h4>
-                <p className="muted">
-                  prioritet: {priority} · källa: {item.sourceType} · id: {sourceRef}
-                </p>
+                <div className="ui-card__header">
+                  <div className="ui-card__title-block">
+                    <h4>{formatRuleLabel(item.rule)}</h4>
+                    <p className="ui-muted">
+                      källa: {item.sourceType} · id: {sourceRef}
+                    </p>
+                  </div>
+                  <StatusPill tone={priorityTone(priority)}>{priority}</StatusPill>
+                </div>
                 <small>
                   case: {item.caseId} · status: {item.status}
                 </small>
               </button>
             );
           })}
-        </div>
-      </article>
+        </Stack>
+      </Panel>
     );
   }, [deviations, error, onDrilldownDeviation]);
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Shell Core</p>
-          <h2>Landningsyta</h2>
-          <p className="muted">
-            Det här är den operativa startsidan. Panelerna är fasta och slices dockar in i valda ytor över tid.
-          </p>
-        </div>
+    <Page>
+      <PageHeader
+        eyebrow="Shell Core"
+        title="Landningsyta"
+        description="Det här är den operativa startsidan. Fokus ligger på det som krävs nu, inte på intern arkitektur."
+        actions={
+          <>
+            <Button tone="primary" onClick={() => onNavigate("document-inbox")}>
+              Öppna inkorg
+            </Button>
+            <Button tone="secondary" onClick={() => onNavigate("jobs")}>
+              Visa jobb
+            </Button>
+          </>
+        }
+      />
 
-        <div className="header-actions">
-          <button className="primary-button" type="button" onClick={() => onNavigate("document-inbox")}>
-            Öppna inkorg
-          </button>
-          <button className="secondary-button" type="button" onClick={() => onNavigate("jobs")}>
-            Visa jobb
-          </button>
-        </div>
-      </header>
+      <Panel
+        className="ui-hero-dropzone"
+        title="Inkommande material"
+        subtitle="Här ska nytt material kunna landa fritt och direkt bli en del av arbetsflödet."
+        status={<StatusPill tone="info">Drop eller klistra in</StatusPill>}
+      />
 
-      <section className="hero-dropzone">
-        <div>
-          <p className="eyebrow">Drop/Paste-zon</p>
-          <h3>Här ska nytt material kunna landa fritt</h3>
-          <p className="muted">
-            I shell-core är detta bara en reserverad yta. `document-inbox` dockar in den verkliga inkommande hanteringen.
-          </p>
-        </div>
-      </section>
-
-      <section className="panel-grid">
+      <section className="ui-panel-grid">
         {deviationPanel}
         {panels.map((panel) => (
-          <article key={panel.title} className="panel-card">
-            <h3>{panel.title}</h3>
+          <Panel key={panel.title} title={panel.title}>
             <p>{panel.body}</p>
-          </article>
+          </Panel>
         ))}
       </section>
-    </section>
+    </Page>
   );
 }
+
+

@@ -1,4 +1,4 @@
-﻿import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
+import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type { ReviewActionStatus, ReviewQueueItem } from "../contracts";
 
 export class BootstrapReviewRepository {
@@ -71,3 +71,4 @@ export class BootstrapReviewRepository {
     return Boolean(row?.ok);
   }
 }
+

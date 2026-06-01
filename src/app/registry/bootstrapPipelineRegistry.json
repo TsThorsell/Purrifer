@@ -1,0 +1,119 @@
+[
+  {
+    "sliceId": "bootstrap-contract",
+    "displayName": "Bootstrap Contract",
+    "moduleDocPath": "src/features/bootstrap-contract/MODULE.md",
+    "ownedAreas": ["canonical-import-contract", "schema-validator"],
+    "navigationRoutes": [],
+    "contracts": [
+      "CANONICAL_SCHEMA_MAJOR",
+      "CanonicalBatchEnvelope",
+      "ValidationError",
+      "CanonicalValidationResult"
+    ],
+    "dependsOn": []
+  },
+  {
+    "sliceId": "bootstrap-intake",
+    "displayName": "Bootstrap Intake",
+    "moduleDocPath": "src/features/bootstrap-intake/MODULE.md",
+    "ownedAreas": ["rawzonsingest", "folder-batch-intake", "hash-dedupe"],
+    "navigationRoutes": ["bootstrap-intake"],
+    "contracts": [
+      "RawIngestApi",
+      "bootstrapIntakeChannels",
+      "bootstrap-intake:select-folders-and-ingest",
+      "bootstrap-intake:scan-to-batch",
+      "bootstrap-intake:get-batch"
+    ],
+    "dependsOn": ["bootstrap-contract"]
+  },
+  {
+    "sliceId": "bootstrap-preprocess",
+    "displayName": "Bootstrap Preprocess",
+    "moduleDocPath": "src/features/bootstrap-preprocess/MODULE.md",
+    "ownedAreas": ["offline-preprocess", "canonical-record-generation"],
+    "navigationRoutes": ["bootstrap-preprocess"],
+    "contracts": [
+      "BootstrapPreprocessApi",
+      "PreprocessRunSummary",
+      "bootstrapPreprocessChannels"
+    ],
+    "dependsOn": ["bootstrap-intake", "bootstrap-contract"]
+  },
+  {
+    "sliceId": "bootstrap-stage",
+    "displayName": "Bootstrap Stage Gate",
+    "moduleDocPath": "src/features/bootstrap-stage/MODULE.md",
+    "ownedAreas": ["stage-import-gate", "record-status-classification"],
+    "navigationRoutes": ["bootstrap-stage"],
+    "contracts": [
+      "BootstrapStageApi",
+      "StageRunInput",
+      "bootstrapStageChannels"
+    ],
+    "dependsOn": ["bootstrap-preprocess", "bootstrap-contract"]
+  },
+  {
+    "sliceId": "bootstrap-review",
+    "displayName": "Bootstrap Review",
+    "moduleDocPath": "src/features/bootstrap-review/MODULE.md",
+    "ownedAreas": ["review-queue", "bulk-review-actions"],
+    "navigationRoutes": ["bootstrap-review"],
+    "contracts": [
+      "BootstrapReviewApi",
+      "ReviewQueueItem",
+      "bootstrapReviewChannels"
+    ],
+    "dependsOn": ["bootstrap-stage", "bootstrap-contract"]
+  },
+  {
+    "sliceId": "bootstrap-commit",
+    "displayName": "Bootstrap Commit",
+    "moduleDocPath": "src/features/bootstrap-commit/MODULE.md",
+    "ownedAreas": ["commit-import", "proof-chain-links"],
+    "navigationRoutes": ["bootstrap-commit"],
+    "contracts": [
+      "BootstrapCommitApi",
+      "BootstrapCommitResult",
+      "bootstrapCommitChannels"
+    ],
+    "dependsOn": ["bootstrap-stage", "bootstrap-contract"]
+  },
+  {
+    "sliceId": "bootstrap-audit",
+    "displayName": "Bootstrap Audit",
+    "moduleDocPath": "src/features/bootstrap-audit/MODULE.md",
+    "ownedAreas": ["audit-traceability", "lineage-view"],
+    "navigationRoutes": ["bootstrap-audit"],
+    "contracts": [
+      "BootstrapAuditApi",
+      "AuditTrailItem",
+      "bootstrapAuditChannels"
+    ],
+    "dependsOn": [
+      "bootstrap-stage",
+      "bootstrap-review",
+      "bootstrap-commit",
+      "bootstrap-contract"
+    ]
+  },
+  {
+    "sliceId": "bootstrap-pilot-dashboard",
+    "displayName": "Bootstrap Pilot Dashboard",
+    "moduleDocPath": "src/features/bootstrap-pilot-dashboard/MODULE.md",
+    "ownedAreas": ["bootstrap-pilot-dashboard", "migration-kpi"],
+    "navigationRoutes": ["bootstrap-pilot-dashboard"],
+    "contracts": [
+      "BootstrapPilotDashboardApi",
+      "PilotQualityKpis",
+      "bootstrapPilotDashboardChannels"
+    ],
+    "dependsOn": [
+      "bootstrap-review",
+      "bootstrap-commit",
+      "bootstrap-audit",
+      "bootstrap-contract"
+    ]
+  }
+]

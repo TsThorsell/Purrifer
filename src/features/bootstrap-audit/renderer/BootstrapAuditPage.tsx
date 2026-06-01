@@ -1,4 +1,14 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import {
+  Button,
+  Field,
+  FieldGrid,
+  Page,
+  PageHeader,
+  Panel,
+  Stack,
+  StatusPill
+} from "../../../renderer/components/Ui";
 import type { AuditTrailItem } from "../contracts";
 
 export function BootstrapAuditPage() {
@@ -16,52 +26,49 @@ export function BootstrapAuditPage() {
       });
       setItems(result);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa audit trail.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa audit trail.");
     }
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Bootstrap Audit</p>
-          <h2>Spårbarhet från råfil till slutobjekt</h2>
-          <p className="muted">Visar lineage: raw ingest, preprocess, stage-beslut, manuell korrigering och commit-tid/objekt.</p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Bootstrap Audit"
+        title="Spårbarhet från råfil till slutobjekt"
+        description="Visar lineage: raw ingest, preprocess, stage-beslut, manuell korrigering och commit-tid/objekt."
+      />
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      <section className="panel-card">
-        <div className="field-grid">
-          <label className="field-label" htmlFor="audit-source-file">source_file_id (optional)</label>
-          <input id="audit-source-file" className="text-input" value={sourceFileId} onChange={(event) => setSourceFileId(event.target.value)} />
-          <label className="field-label" htmlFor="audit-commit-batch">commit_batch_id (optional)</label>
-          <input id="audit-commit-batch" className="text-input" value={commitBatchId} onChange={(event) => setCommitBatchId(event.target.value)} />
-        </div>
-        <div className="detail-actions">
-          <button className="primary-button" type="button" onClick={() => void loadTrail()}>Ladda audit trail</button>
-        </div>
-      </section>
+      <Panel title="Filter">
+        <FieldGrid>
+          <Field label="source_file_id (optional)">
+            <input className="ui-input" value={sourceFileId} onChange={(event) => setSourceFileId(event.target.value)} />
+          </Field>
+          <Field label="commit_batch_id (optional)">
+            <input className="ui-input" value={commitBatchId} onChange={(event) => setCommitBatchId(event.target.value)} />
+          </Field>
+          <div className="ui-actions">
+            <Button onClick={() => void loadTrail()}>Ladda audit trail</Button>
+          </div>
+        </FieldGrid>
+      </Panel>
 
-      <section className="panel-card">
-        <div className="panel-topline">
-          <h3>Lineage</h3>
-          <span className="status-pill neutral">{items.length}</span>
-        </div>
-        <div className="stacked-list">
+      <Panel title="Lineage" status={<StatusPill>{items.length}</StatusPill>}>
+        <Stack>
           {items.map((item) => (
-            <article key={`${item.commitBatchId}-${item.recordId}`} className="list-card">
+            <article key={`${item.commitBatchId}-${item.recordId}`} className="ui-card">
               <h4>{item.recordType} · {item.recordId}</h4>
-              <p className="muted">raw: {item.sourceFileId} · ingest: {item.ingestBatchId}</p>
+              <p className="ui-muted">raw: {item.sourceFileId} · ingest: {item.ingestBatchId}</p>
               <small>preprocess: {item.preprocessBatchId} · stage: {item.stageBatchId} ({item.stageStatus}) @ {item.stageCreatedAt}</small>
-              <small>review: {item.reviewActionStatus ?? "none"} {item.reviewAt ? `@ ${item.reviewAt}` : ""}</small>
-              <small>commit: {item.commitBatchId ?? "none"} {item.committedAt ? `@ ${item.committedAt}` : ""} · objekt: {item.objectType ?? "-"}/{item.objectId ?? "-"}</small>
+              <small>review: {item.reviewActionStatus ?? "none"}{item.reviewAt ? ` @ ${item.reviewAt}` : ""}</small>
+              <small>commit: {item.commitBatchId ?? "none"}{item.committedAt ? ` @ ${item.committedAt}` : ""} · objekt: {item.objectType ?? "-"}/{item.objectId ?? "-"}</small>
             </article>
           ))}
-          {items.length === 0 ? <p className="muted">Ingen spårbarhetsdata matchade filtret.</p> : null}
-        </div>
-      </section>
-    </section>
+          {items.length === 0 ? <p className="ui-muted">Ingen spårbarhetsdata matchade filtret.</p> : null}
+        </Stack>
+      </Panel>
+    </Page>
   );
 }
+

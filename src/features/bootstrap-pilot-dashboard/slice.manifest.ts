@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const bootstrapPilotDashboardManifest: SliceManifest = {
   sliceId: "bootstrap-pilot-dashboard",
@@ -13,4 +13,5 @@ export const bootstrapPilotDashboardManifest: SliceManifest = {
     }
   ]
 };
+
 

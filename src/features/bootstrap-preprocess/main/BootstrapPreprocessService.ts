@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import { AppError } from "@app/shared/errors/AppError";
 import { FileSequenceStore } from "@app/shared/storage/FileSequenceStore";
 import { validateCanonicalImportBatch } from "@features/bootstrap-contract/main/validateCanonicalImportBatch";
@@ -153,3 +153,4 @@ export class BootstrapPreprocessService {
     };
   }
 }
+

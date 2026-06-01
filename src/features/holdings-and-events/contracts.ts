@@ -22,6 +22,19 @@ export interface HoldingDetails extends HoldingSummary {
   timeline: HoldingEvent[];
 }
 
+export interface HoldingTimelineItem extends HoldingEvent {
+  holdingName: string;
+  entityId: string;
+}
+
+export interface HoldingTimelineFilter {
+  holdingId?: string;
+  entityId?: string;
+  eventType?: HoldingEventType;
+  fromEventDate?: string;
+  toEventDate?: string;
+}
+
 export interface HoldingAnalysis {
   holdingId: string;
   totalInvested: number;
@@ -56,6 +69,7 @@ export interface HoldingsAndEventsApi {
   listHoldings(entityId?: string): Promise<HoldingSummary[]>;
   getHoldingDetails(holdingId: string): Promise<HoldingDetails>;
   createHoldingEvent(input: CreateHoldingEventInput): Promise<HoldingEvent>;
+  listHoldingTimeline(filter?: HoldingTimelineFilter): Promise<HoldingTimelineItem[]>;
   getHoldingAnalysis(holdingId: string): Promise<HoldingAnalysis>;
 }
 
@@ -64,5 +78,7 @@ export const holdingsAndEventsChannels = {
   listHoldings: "holdings-and-events:list-holdings",
   getHoldingDetails: "holdings-and-events:get-holding-details",
   createHoldingEvent: "holdings-and-events:create-holding-event",
+  listHoldingTimeline: "holdings-and-events:list-holding-timeline",
   getHoldingAnalysis: "holdings-and-events:get-holding-analysis"
 } as const;
+

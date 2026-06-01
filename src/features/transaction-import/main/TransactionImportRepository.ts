@@ -2,6 +2,7 @@ import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type {
   ImportBatchDetails,
   ImportBatchSummary,
+  ImportBatchStatus,
   ImportCommitRow,
   ImportFileType,
   ImportObjectType,
@@ -18,7 +19,10 @@ export class TransactionImportRepository {
     batchId: string;
     fileName: string;
     fileType: ImportFileType;
+    source: string;
+    status: ImportBatchStatus;
     importedAt: string;
+    statusReason?: string;
     rows: ImportedTransactionRow[];
   }): Promise<void> {
     const db = await this.sqliteDatabase.open();
@@ -29,9 +33,9 @@ export class TransactionImportRepository {
     db.prepare(
       `
       INSERT INTO import_batches (
-        batch_id, file_name, file_type, imported_at, total_rows, valid_rows, invalid_rows, rows_json
+        batch_id, file_name, file_type, imported_at, total_rows, valid_rows, invalid_rows, rows_json, source, status, status_reason
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
     ).run(
       input.batchId,
@@ -41,7 +45,10 @@ export class TransactionImportRepository {
       totalRows,
       validRows,
       invalidRows,
-      JSON.stringify(input.rows)
+      JSON.stringify(input.rows),
+      input.source,
+      input.status,
+      input.statusReason ?? null
     );
   }
 
@@ -50,7 +57,7 @@ export class TransactionImportRepository {
     const rows = db
       .prepare(
         `
-        SELECT batch_id, file_name, file_type, imported_at, total_rows, valid_rows, invalid_rows
+        SELECT batch_id, file_name, file_type, imported_at, source, status, status_reason, total_rows, valid_rows, invalid_rows
         FROM import_batches
         ORDER BY imported_at DESC
         `
@@ -61,6 +68,9 @@ export class TransactionImportRepository {
       batchId: String(row.batch_id),
       fileName: String(row.file_name),
       fileType: row.file_type as ImportFileType,
+      source: String(row.source),
+      status: (row.status as ImportBatchStatus) ?? "ready",
+      statusReason: row.status_reason ? String(row.status_reason) : undefined,
       importedAt: String(row.imported_at),
       totalRows: Number(row.total_rows),
       validRows: Number(row.valid_rows),
@@ -73,7 +83,7 @@ export class TransactionImportRepository {
     const row = db
       .prepare(
         `
-        SELECT batch_id, file_name, file_type, imported_at, total_rows, valid_rows, invalid_rows, rows_json
+        SELECT batch_id, file_name, file_type, imported_at, source, status, status_reason, total_rows, valid_rows, invalid_rows, rows_json
         FROM import_batches
         WHERE batch_id = ?
         `
@@ -88,6 +98,9 @@ export class TransactionImportRepository {
       batchId: String(row.batch_id),
       fileName: String(row.file_name),
       fileType: row.file_type as ImportFileType,
+      source: String(row.source),
+      status: (row.status as ImportBatchStatus) ?? "ready",
+      statusReason: row.status_reason ? String(row.status_reason) : undefined,
       importedAt: String(row.imported_at),
       totalRows: Number(row.total_rows),
       validRows: Number(row.valid_rows),
@@ -219,7 +232,23 @@ export class TransactionImportRepository {
           input.committedAt
         );
       });
+
+      db.prepare("UPDATE import_batches SET status = ?, status_reason = ? WHERE batch_id = ?").run(
+        "committed",
+        "Batch commit slutförd.",
+        input.batchId
+      );
     });
     tx();
+  }
+
+  async updateBatchStatus(batchId: string, status: ImportBatchStatus, statusReason?: string | null): Promise<void> {
+    const db = await this.sqliteDatabase.open();
+    const result = db
+      .prepare("UPDATE import_batches SET status = ?, status_reason = ? WHERE batch_id = ?")
+      .run(status, statusReason ?? null, batchId);
+    if (result.changes === 0) {
+      throw new Error(`No import batch found for id ${batchId}`);
+    }
   }
 }

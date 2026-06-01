@@ -1,5 +1,5 @@
 import { SearchAndIndexRepository } from "./SearchAndIndexRepository";
-import type { RebuildSearchIndexResult, SearchResultItem } from "../contracts";
+import type { RebuildSearchIndexResult, SearchIndexQualityReport, SearchResultItem } from "../contracts";
 
 export class SearchAndIndexService {
   constructor(private readonly repository: SearchAndIndexRepository) {}
@@ -11,9 +11,16 @@ export class SearchAndIndexService {
   async rebuildSearchIndex(): Promise<RebuildSearchIndexResult> {
     const indexedAt = new Date().toISOString();
     const indexedCount = await this.repository.rebuildIndex(indexedAt);
+    const quality = await this.getIndexQualityReport();
     return {
       indexedAt,
-      indexedCount
+      indexedCount,
+      quality
     };
   }
+
+  async getIndexQualityReport(): Promise<SearchIndexQualityReport> {
+    return this.repository.getIndexQualityReport();
+  }
 }
+

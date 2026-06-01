@@ -10,6 +10,8 @@ Slicen ansvarar for:
 - verifieringsstatus
 - skapande av verifikat fran dokument
 - export av `UL/MD`-backup
+- relationshantering mellan verifikat och dokument (huvudkälla + stödjande dokument)
+- beviskedjor och statushistorik för dokumentflöden
 
 ## Agda ytor
 
@@ -17,6 +19,8 @@ Slicen ansvarar for:
 - verifikatdetaljer
 - skapande av verifikat fran dokumentunderlag
 - exportknappar och statusytor for verifikatbackup
+- relationstabell för primary/supporting dokument
+- visning av beviskedja och statushistorik
 
 ## Tillatna beroenden
 

@@ -1,4 +1,4 @@
-﻿import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
+import { SqliteDatabase } from "@app/shared/storage/SqliteDatabase";
 import type { BootstrapCommitObject, BootstrapCommitResult, BootstrapCommitSummary } from "../contracts";
 
 export interface StageDecisionRow {
@@ -283,3 +283,4 @@ export class BootstrapCommitRepository {
     );
   }
 }
+

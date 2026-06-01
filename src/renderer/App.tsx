@@ -1,30 +1,59 @@
-﻿import { useMemo, useState } from "react";
-import { appNavigation } from "@app/registry/slices";
+import { useMemo, useState, type PropsWithChildren } from "react";
 import type { AppRouteKey } from "@app/registry/routes";
-import { BootstrapIntakePage } from "@features/bootstrap-intake/renderer/BootstrapIntakePage";
-import { BootstrapCommitPage } from "@features/bootstrap-commit/renderer/BootstrapCommitPage";
-import { BootstrapPreprocessPage } from "@features/bootstrap-preprocess/renderer/BootstrapPreprocessPage";
-import { BootstrapReviewPage } from "@features/bootstrap-review/renderer/BootstrapReviewPage";
-import { BootstrapStagePage } from "@features/bootstrap-stage/renderer/BootstrapStagePage";
-import { BootstrapAuditPage } from "@features/bootstrap-audit/renderer/BootstrapAuditPage";
-import { BootstrapPilotDashboardPage } from "@features/bootstrap-pilot-dashboard/renderer/BootstrapPilotDashboardPage";
-import { DocumentInboxPage } from "@features/document-inbox/renderer/DocumentInboxPage";
-import { DocumentReviewPage } from "@features/document-review/renderer/DocumentReviewPage";
-import { EntityRegistryPage } from "@features/entity-registry/renderer/EntityRegistryPage";
-import { HoldingsAndEventsPage } from "@features/holdings-and-events/renderer/HoldingsAndEventsPage";
-import { InvoiceAndPaymentPage } from "@features/invoice-and-payment/renderer/InvoiceAndPaymentPage";
-import type { DeviationCaseSummary } from "@features/obligations-and-cases/contracts";
-import { ObligationsAndCasesPage } from "@features/obligations-and-cases/renderer/ObligationsAndCasesPage";
-import { ReportsLitePage } from "@features/reports-lite/renderer/ReportsLitePage";
-import { RetirementBaselinePage } from "@features/retirement-baseline/renderer/RetirementBaselinePage";
-import type { SearchNavigationTarget } from "@features/search-and-index/contracts";
-import { SearchAndIndexPage } from "@features/search-and-index/renderer/SearchAndIndexPage";
-import { LandingPage } from "@features/shell-core/renderer/LandingPage";
-import { JobsPage } from "@features/shell-core/renderer/JobsPage";
-import { SettingsPage } from "@features/shell-core/renderer/SettingsPage";
-import { ShellLayout } from "@features/shell-core/renderer/ShellLayout";
-import { TransactionImportPage } from "@features/transaction-import/renderer/TransactionImportPage";
-import { VoucherAndProofPage } from "@features/voucher-and-proof/renderer/VoucherAndProofPage";
+import { appNavigationTree } from "@app/registry/slices";
+import { routeHostDiscoveryIssues, resolveRouteHost } from "@app/registry/routeHosts";
+import { Button, EmptyState, Page, PageHeader, Panel, StatusPill } from "@renderer/components/Ui";
+import type { DeviationCaseSummary, SearchNavigationTarget } from "@app/registry/routeHostTypes";
+import { shellHostDiscoveryIssues, resolveShellHost } from "@app/registry/shellHosts";
+
+function routeHostDiagnostics(route: AppRouteKey): string[] {
+  return routeHostDiscoveryIssues.filter((issue) => issue.route === route).map((issue) => issue.message);
+}
+
+function shellHostDiagnostics(): string[] {
+  return shellHostDiscoveryIssues.map((issue) => `${issue.sliceId}: ${issue.message}`);
+}
+
+function FallbackShellHost({ children }: PropsWithChildren) {
+  return <div className="ui-shell-fallback">{children}</div>;
+}
+
+function InvalidRouteFallback({
+  route,
+  onNavigate
+}: {
+  route: AppRouteKey;
+  onNavigate: (route: AppRouteKey) => void;
+}) {
+  const messages = routeHostDiagnostics(route);
+  const hasMessages = messages.length > 0;
+
+  return (
+    <Page>
+      <PageHeader
+        eyebrow="Routing"
+        title={`Route ${route} kunde inte öppnas`}
+        description="Modulens render-host är inte tillgänglig."
+      />
+      <Panel title="Diagnostik" status={<StatusPill tone="danger">routing-fel</StatusPill>}>
+        {hasMessages ? (
+          <ul>
+            {messages.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState>Ingen route-specifik diagnostik tillgänglig.</EmptyState>
+        )}
+      </Panel>
+      <Panel title="Åtgärd">
+        <Button tone="secondary" onClick={() => onNavigate("landing")}>
+          Öppna landningsruta
+        </Button>
+      </Panel>
+    </Page>
+  );
+}
 
 export function App() {
   const [activeRoute, setActiveRoute] = useState<AppRouteKey>("landing");
@@ -51,104 +80,55 @@ export function App() {
     setActiveRoute(target.route);
   }
 
-  function activeSearchHitBanner(route: AppRouteKey) {
-    if (searchTarget?.route !== route) {
-      return null;
-    }
-
-    return (
-      <section className="panel-card">
-        <h3>Aktiv soktraff</h3>
-        <p className="muted">
-          typ: {searchTarget.objectType} · id: {searchTarget.objectId}
-        </p>
-        {searchTarget.title ? <p>{searchTarget.title}</p> : null}
-        {searchTarget.summary ? <small>{searchTarget.summary}</small> : null}
-      </section>
-    );
-  }
+  const activeRouteIssues = routeHostDiagnostics(activeRoute);
+  const currentHost = resolveRouteHost(activeRoute);
+  const shellHost = resolveShellHost();
+  const shellIssues = shellHostDiagnostics();
 
   const page = useMemo(() => {
-    switch (activeRoute) {
-      case "document-inbox":
-        return (
-          <>
-            {activeSearchHitBanner("document-inbox")}
-            <DocumentInboxPage />
-          </>
-        );
-      case "document-review":
-        return <DocumentReviewPage />;
-      case "entity-registry":
-        return <EntityRegistryPage />;
-      case "holdings-and-events":
-        return <HoldingsAndEventsPage />;
-      case "transaction-import":
-        return <TransactionImportPage />;
-      case "bootstrap-intake":
-        return <BootstrapIntakePage />;
-      case "bootstrap-preprocess":
-        return <BootstrapPreprocessPage />;
-      case "bootstrap-stage":
-        return <BootstrapStagePage />;
-      case "bootstrap-review":
-        return <BootstrapReviewPage />;
-      case "bootstrap-commit":
-        return <BootstrapCommitPage />;
-      case "bootstrap-audit":
-        return <BootstrapAuditPage />;
-      case "bootstrap-pilot-dashboard":
-        return <BootstrapPilotDashboardPage />;
-      case "invoice-and-payment":
-        return (
-          <>
-            {activeSearchHitBanner("invoice-and-payment")}
-            <InvoiceAndPaymentPage />
-          </>
-        );
-      case "obligations-and-cases":
-        return (
-          <>
-            {activeSearchHitBanner("obligations-and-cases")}
-            {drilldownTarget ? (
-              <section className="panel-card">
-                <h3>Drilldown fran landningsyta</h3>
-                <p className="muted">
-                  Regel: {drilldownTarget.rule} · case: {drilldownTarget.caseId} · kalla: {" "}
-                  {drilldownTarget.sourceType}/{drilldownTarget.sourceId}
-                </p>
-                <small>Malobjekt: {drilldownTarget.obligationId ?? drilldownTarget.sourceId}</small>
-              </section>
-            ) : null}
-            <ObligationsAndCasesPage />
-          </>
-        );
-      case "vouchers":
-        return (
-          <>
-            {activeSearchHitBanner("vouchers")}
-            <VoucherAndProofPage />
-          </>
-        );
-      case "search":
-        return <SearchAndIndexPage onOpenTarget={handleSearchResultOpen} />;
-      case "reports-lite":
-        return <ReportsLitePage onDrilldown={handleSearchResultOpen} />;
-      case "retirement-baseline":
-        return <RetirementBaselinePage />;
-      case "jobs":
-        return <JobsPage />;
-      case "settings":
-        return <SettingsPage />;
-      case "landing":
-      default:
-        return <LandingPage onNavigate={handleNavigate} onDrilldownDeviation={handleDeviationDrilldown} />;
+    if (!currentHost) {
+      return <InvalidRouteFallback route={activeRoute} onNavigate={handleNavigate} />;
     }
-  }, [activeRoute, drilldownTarget, searchTarget]);
+
+    return currentHost.render({
+      searchTarget,
+      drilldownTarget,
+      onNavigate: handleNavigate,
+      onSearchTarget: handleSearchResultOpen,
+      onDrilldownDeviation: handleDeviationDrilldown
+    });
+  }, [activeRoute, currentHost, drilldownTarget, searchTarget]);
+
+  const shellContent = (
+    <>
+      {activeRouteIssues.length > 0 ? (
+        <Panel title="Routing-varning" status={<StatusPill tone="warning">problem i registry</StatusPill>}>
+          <ul>
+            {activeRouteIssues.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+      {shellIssues.length > 0 ? (
+        <Panel title="Shell-host-varning" status={<StatusPill tone="warning">problem i shell</StatusPill>}>
+          <ul>
+            {shellIssues.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+      {page}
+    </>
+  );
 
   return (
-    <ShellLayout activeRoute={activeRoute} navigation={appNavigation} onNavigate={handleNavigate}>
-      {page}
-    </ShellLayout>
+    shellHost?.renderShell({
+      activeRoute,
+      navigation: appNavigationTree,
+      onNavigate: handleNavigate,
+      children: shellContent
+    }) ?? <FallbackShellHost>{shellContent}</FallbackShellHost>
   );
 }

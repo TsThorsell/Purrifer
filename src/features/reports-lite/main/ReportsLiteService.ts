@@ -1,4 +1,4 @@
-﻿import { AppError } from "@app/shared/errors/AppError";
+import { AppError } from "@app/shared/errors/AppError";
 import type {
   BudgetComparisonResult,
   BudgetComparisonRow,
@@ -304,3 +304,4 @@ export class ReportsLiteService {
     return "Ovriga kostnader";
   }
 }
+

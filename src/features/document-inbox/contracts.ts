@@ -5,7 +5,12 @@ export type InboxSource =
   | "clipboard-image"
   | "clipboard-text";
 
-export type InboxStatus = "unclassified";
+export type InboxStatus = "unclassified" | "in-review" | "reviewed";
+
+export interface SetInboxItemStatusInput {
+  documentId: string;
+  status: InboxStatus;
+}
 
 export interface RawDocumentPayload {
   fileName: string;
@@ -32,6 +37,7 @@ export interface InboxItemDetails extends InboxItemSummary {
 export interface DocumentInboxApi {
   listInboxItems(): Promise<InboxItemSummary[]>;
   getInboxItem(documentId: string): Promise<InboxItemDetails>;
+  setInboxItemStatus(input: SetInboxItemStatusInput): Promise<InboxItemSummary>;
   selectAndIngestFiles(): Promise<InboxItemSummary[]>;
   ingestDocuments(payloads: RawDocumentPayload[]): Promise<InboxItemSummary[]>;
   ingestClipboardText(text: string): Promise<InboxItemSummary>;
@@ -41,9 +47,11 @@ export interface DocumentInboxApi {
 export const documentInboxChannels = {
   listInboxItems: "document-inbox:list-items",
   getInboxItem: "document-inbox:get-item",
+  setInboxItemStatus: "document-inbox:set-item-status",
   selectAndIngestFiles: "document-inbox:select-and-ingest-files",
   ingestDocuments: "document-inbox:ingest-documents",
   ingestClipboardText: "document-inbox:ingest-clipboard-text",
   openStoredDocument: "document-inbox:open-stored-document"
 } as const;
+
 

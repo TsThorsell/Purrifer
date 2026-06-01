@@ -1,0 +1,41 @@
+import type { DocumentInboxApi } from "@features/document-inbox/contracts";
+import type { DocumentReviewApi } from "@features/document-review/contracts";
+import type { EntityRegistryApi } from "@features/entity-registry/contracts";
+import type { HoldingsAndEventsApi } from "@features/holdings-and-events/contracts";
+import type { RawIngestApi } from "@features/bootstrap-intake/contracts";
+import type { BootstrapPreprocessApi } from "@features/bootstrap-preprocess/contracts";
+import type { BootstrapStageApi } from "@features/bootstrap-stage/contracts";
+import type { BootstrapReviewApi } from "@features/bootstrap-review/contracts";
+import type { BootstrapCommitApi } from "@features/bootstrap-commit/contracts";
+import type { BootstrapAuditApi } from "@features/bootstrap-audit/contracts";
+import type { BootstrapPilotDashboardApi } from "@features/bootstrap-pilot-dashboard/contracts";
+import type { InvoiceAndPaymentApi } from "@features/invoice-and-payment/contracts";
+import type { ObligationsAndCasesApi } from "@features/obligations-and-cases/contracts";
+import type { SearchAndIndexApi } from "@features/search-and-index/contracts";
+import type { ReportsLiteApi } from "@features/reports-lite/contracts";
+import type { RetirementBaselineApi } from "@features/retirement-baseline/contracts";
+import type { TransactionImportApi } from "@features/transaction-import/contracts";
+import type { ShellCoreApi } from "@features/shell-core/contracts";
+import type { VoucherAndProofApi } from "@features/voucher-and-proof/contracts";
+
+export interface PurriferApi {
+  shellCore: ShellCoreApi;
+  documentInbox: DocumentInboxApi;
+  documentReview: DocumentReviewApi;
+  entityRegistry: EntityRegistryApi;
+  holdingsAndEvents: HoldingsAndEventsApi;
+  invoiceAndPayment: InvoiceAndPaymentApi;
+  obligationsAndCases: ObligationsAndCasesApi;
+  searchAndIndex: SearchAndIndexApi;
+  reportsLite: ReportsLiteApi;
+  retirementBaseline: RetirementBaselineApi;
+  transactionImport: TransactionImportApi;
+  bootstrapIntake: RawIngestApi;
+  bootstrapPreprocess: BootstrapPreprocessApi;
+  bootstrapStage: BootstrapStageApi;
+  bootstrapReview: BootstrapReviewApi;
+  bootstrapCommit: BootstrapCommitApi;
+  bootstrapAudit: BootstrapAuditApi;
+  bootstrapPilotDashboard: BootstrapPilotDashboardApi;
+  voucherAndProof: VoucherAndProofApi;
+}

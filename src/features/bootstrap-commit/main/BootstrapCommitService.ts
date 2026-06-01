@@ -1,4 +1,4 @@
-﻿import { AppError } from "@app/shared/errors/AppError";
+import { AppError } from "@app/shared/errors/AppError";
 import { FileSequenceStore } from "@app/shared/storage/FileSequenceStore";
 import type { BootstrapCommitInput, BootstrapCommitObject, BootstrapCommitResult, BootstrapCommitSummary } from "../contracts";
 import { BootstrapCommitRepository } from "./BootstrapCommitRepository";
@@ -206,3 +206,4 @@ export class BootstrapCommitService {
     return batch;
   }
 }
+

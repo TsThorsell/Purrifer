@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ReviewActionStatus, ReviewQueueItem } from "../contracts";
+import { Actions, Button, EmptyState, Field, FieldGrid, Page, PageHeader, Panel, SplitLayout, Stack, StatusPill } from "../../../renderer/components/Ui";
 
 const reviewActions: ReviewActionStatus[] = ["approved", "accepted-incomplete", "rejected"];
 
@@ -21,7 +22,7 @@ export function BootstrapReviewPage() {
       setQueue(nextQueue);
       setSelectedRecordIds([]);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa review queue.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa review queue.");
     }
   }
 
@@ -44,7 +45,7 @@ export function BootstrapReviewPage() {
       setLastUpdatedCount(result.updatedCount);
       await loadQueue();
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte tillampa bulk action.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte tillämpa bulk action.");
     }
   }
 
@@ -59,102 +60,80 @@ export function BootstrapReviewPage() {
   }, [queue]);
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Bootstrap Review</p>
-          <h2>Manuell godkännandeport för adapterinflöde</h2>
-          <p className="muted">
-            Needs-review-records måste få manuellt beslut innan de kan betraktas som operativt godkända.
-          </p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Bootstrap Review"
+        title="Manuell godkännandeport för adapterinflöde"
+        description="Needs-review-records måste få manuellt beslut innan de kan räknas som operativt godkända."
+      />
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? <div className="ui-error-banner">{error}</div> : null}
 
-      <section className="panel-card">
-        <div className="field-grid">
-          <label className="field-label" htmlFor="review-stage-batch-id">stage_batch_id (valfri)</label>
-          <input
-            id="review-stage-batch-id"
-            className="text-input"
-            value={stageBatchId}
-            onChange={(event) => setStageBatchId(event.target.value)}
-            placeholder="SB000001"
-          />
-        </div>
-        <div className="detail-actions">
-          <button className="primary-button" type="button" onClick={() => void loadQueue()}>
-            Lasa review queue
-          </button>
-        </div>
-      </section>
+      <Panel title="Filter">
+        <FieldGrid>
+          <Field label="stage_batch_id (valfri)">
+            <input value={stageBatchId} onChange={(event) => setStageBatchId(event.target.value)} placeholder="SB000001" />
+          </Field>
+        </FieldGrid>
+        <Actions>
+          <Button onClick={() => void loadQueue()}>Läs review queue</Button>
+        </Actions>
+      </Panel>
 
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Needs-review queue</h3>
-            <span className="status-pill neutral">{queue.length}</span>
-          </div>
+      <SplitLayout>
+        <Panel title="Needs-review queue" status={<StatusPill>{queue.length}</StatusPill>}>
           {queueByBatch.length > 0 ? (
-            <div className="stacked-list">
+            <Stack>
               {queueByBatch.map(([batch, items]) => (
-                <article key={batch} className="list-card">
-                  <h4>{batch}</h4>
-                  <small>{items.length} records</small>
-                  <div className="stacked-list">
+                <article key={batch} className="ui-card">
+                  <div className="ui-card__header">
+                    <div className="ui-card__title-block">
+                      <h4>{batch}</h4>
+                      <p className="ui-muted">{items.length} records</p>
+                    </div>
+                  </div>
+                  <Stack>
                     {items.map((item) => (
-                      <label key={`${item.stageBatchId}-${item.recordId}`} className="list-card selectable">
+                      <label key={`${item.stageBatchId}-${item.recordId}`} className="ui-card selectable">
                         <input
                           type="checkbox"
                           checked={selectedRecordIds.includes(item.recordId)}
                           onChange={() => toggleRecord(item.recordId)}
                         />
-                        <p className="muted">{item.recordType} · {item.recordId} · {item.sourceFileId}</p>
+                        <p className="ui-muted">{item.recordType} · {item.recordId} · {item.sourceFileId}</p>
                         <small>reasons: {item.reasonCodes.join(", ") || "none"}</small>
                       </label>
                     ))}
-                  </div>
+                  </Stack>
                 </article>
               ))}
-            </div>
+            </Stack>
           ) : (
-            <p className="muted">Ingen review-post hittades med aktuellt filter.</p>
+            <EmptyState>Ingen review-post hittades med aktuellt filter.</EmptyState>
           )}
-        </article>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Bulk action</h3>
-            <span className="status-pill neutral">{selectedRecordIds.length}</span>
-          </div>
-          <div className="detail-grid">
-            <div>
-              <p className="detail-label">Action status</p>
+        <Panel title="Bulk action" status={<StatusPill>{selectedRecordIds.length}</StatusPill>}>
+          <FieldGrid>
+            <Field label="Action status">
               <select value={actionStatus} onChange={(event) => setActionStatus(event.target.value as ReviewActionStatus)}>
                 {reviewActions.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
-            </div>
-            <div className="detail-span">
-              <p className="detail-label">Review note (obligatorisk)</p>
+            </Field>
+            <Field label="Review note (obligatorisk)" className="ui-field-span">
               <textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} rows={4} />
-            </div>
-            <div className="detail-actions">
-              <button className="secondary-button" type="button" onClick={() => void applyBulkAction()}>
-                Tillampa manuellt beslut
-              </button>
-            </div>
-          </div>
-          {lastUpdatedCount !== null ? (
-            <small>Uppdaterade records: {lastUpdatedCount}</small>
-          ) : (
-            <small>Inga beslut skickade an.</small>
-          )}
-        </article>
-      </section>
-    </section>
+            </Field>
+          </FieldGrid>
+          <Actions>
+            <Button tone="secondary" onClick={() => void applyBulkAction()}>Tillämpa manuellt beslut</Button>
+          </Actions>
+          <small>{lastUpdatedCount !== null ? `Uppdaterade records: ${lastUpdatedCount}` : "Inga beslut skickade ännu."}</small>
+        </Panel>
+      </SplitLayout>
+    </Page>
   );
 }
+
 

@@ -6,10 +6,11 @@
 
 ## Agda ytor
 
-- entitetslista
+- entitetslista med filter
 - entitetsdetaljer
-- relationer och andelar
-- konton per entitet
+- entitets- och konto-CRUD
+- relationer och andelar med validering
+- visuell fel- och konfliktguide vid regelbrott
 
 ## Tillatna beroenden
 
@@ -19,4 +20,5 @@
 ## Tester
 
 - `tests/architecture/slices.test.mjs`
+- `tests/architecture/entity-registry-behavior.test.mjs`
 

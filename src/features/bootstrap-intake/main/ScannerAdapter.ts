@@ -35,3 +35,4 @@ export interface ScannerAdapter {
   scan(window: BrowserWindow, request: ScannerScanRequest): Promise<ScannerScanResult | null>;
 }
 
+

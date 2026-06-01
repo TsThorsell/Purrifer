@@ -1,4 +1,4 @@
-﻿export interface AuditTrailFilter {
+export interface AuditTrailFilter {
   sourceFileId?: string;
   commitBatchId?: string;
 }
@@ -28,3 +28,4 @@ export interface BootstrapAuditApi {
 export const bootstrapAuditChannels = {
   listAuditTrail: "bootstrap-audit:list-trail"
 } as const;
+

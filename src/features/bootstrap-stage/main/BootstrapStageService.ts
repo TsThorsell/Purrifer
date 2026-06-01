@@ -1,4 +1,4 @@
-﻿import { AppError } from "@app/shared/errors/AppError";
+import { AppError } from "@app/shared/errors/AppError";
 import { FileSequenceStore } from "@app/shared/storage/FileSequenceStore";
 import { validateCanonicalImportBatch } from "@features/bootstrap-contract/main/validateCanonicalImportBatch";
 import type { StageBatchDetails, StageBatchSummary, StageRecordDecision, StageRunInput } from "../contracts";
@@ -145,3 +145,4 @@ export class BootstrapStageService {
     return batch;
   }
 }
+

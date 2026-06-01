@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const shellCoreManifest: SliceManifest = {
   sliceId: "shell-core",
@@ -18,3 +18,4 @@ export const shellCoreManifest: SliceManifest = {
     { route: "settings", label: "Inställningar", sliceId: "shell-core" }
   ]
 };
+

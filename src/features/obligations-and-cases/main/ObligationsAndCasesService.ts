@@ -19,6 +19,35 @@ import type {
 } from "../contracts";
 import { ObligationsAndCasesRepository } from "./ObligationsAndCasesRepository";
 
+const VALID_OBLIGATION_STATUSES = new Set(["draft", "active", "waiting", "done", "accepted-incomplete", "archived"] as const);
+const VALID_CASE_STATUSES = new Set(["new", "draft", "waiting", "done", "accepted-incomplete", "archived"] as const);
+
+function normalizeStatus<T extends string>(
+  rawValue: string | undefined,
+  validStatuses: Set<T>,
+  options: { defaultValue?: T; domain: "obligation" | "case" }
+): T {
+  const trimmed = rawValue?.trim();
+  if (!trimmed) {
+    if (options.defaultValue) {
+      return options.defaultValue;
+    }
+    throw new AppError({
+      code: `BUSINESS_${options.domain.toUpperCase()}_STATUS_REQUIRED`,
+      message: `${options.domain} status måste anges.`,
+      type: "business"
+    });
+  }
+  if (!validStatuses.has(trimmed as T)) {
+    throw new AppError({
+      code: `BUSINESS_${options.domain.toUpperCase()}_STATUS_INVALID`,
+      message: `${options.domain} status ${trimmed} stöds inte.`,
+      type: "business"
+    });
+  }
+  return trimmed as T;
+}
+
 export class ObligationsAndCasesService {
   constructor(
     private readonly repository: ObligationsAndCasesRepository,
@@ -36,11 +65,16 @@ export class ObligationsAndCasesService {
     }
 
     const now = this.nowProvider().toISOString();
+    const normalizedStatus = normalizeStatus(input.status, VALID_OBLIGATION_STATUSES, {
+      defaultValue: "draft",
+      domain: "obligation"
+    });
+
     const obligation: ObligationDetails = {
       obligationId: await this.sequenceStore.next("O"),
       title: input.title.trim(),
       description: input.description?.trim() || undefined,
-      status: input.status,
+      status: normalizedStatus,
       entityId: input.entityId?.trim() || undefined,
       dueDate: input.dueDate?.trim() || undefined,
       createdAt: now,
@@ -53,12 +87,16 @@ export class ObligationsAndCasesService {
 
   async updateObligation(input: UpdateObligationInput): Promise<ObligationDetails> {
     const current = await this.getObligationDetails(input.obligationId);
+    const status = input.status
+      ? normalizeStatus(input.status, VALID_OBLIGATION_STATUSES, { domain: "obligation" })
+      : current.status;
+
     const updated: ObligationDetails = {
       ...current,
       title: input.title?.trim() ? input.title.trim() : current.title,
       description:
         input.description !== undefined ? input.description.trim() || undefined : current.description,
-      status: input.status ?? current.status,
+      status,
       entityId: input.entityId !== undefined ? input.entityId.trim() || undefined : current.entityId,
       dueDate: input.dueDate !== undefined ? input.dueDate.trim() || undefined : current.dueDate,
       updatedAt: this.nowProvider().toISOString()
@@ -103,12 +141,17 @@ export class ObligationsAndCasesService {
     await this.getObligationDetails(input.obligationId);
 
     const now = this.nowProvider().toISOString();
+    const normalizedStatus = normalizeStatus(input.status, VALID_CASE_STATUSES, {
+      defaultValue: "new",
+      domain: "case"
+    });
+
     const item: CaseDetails = {
       caseId: await this.sequenceStore.next("C"),
       obligationId: input.obligationId.trim(),
       title: input.title.trim(),
       description: input.description?.trim() || undefined,
-      status: input.status,
+      status: normalizedStatus,
       createdAt: now,
       updatedAt: now,
       checklist: []
@@ -119,12 +162,16 @@ export class ObligationsAndCasesService {
 
   async updateCase(input: UpdateCaseInput): Promise<CaseDetails> {
     const current = await this.getCaseDetails(input.caseId);
+    const status = input.status
+      ? normalizeStatus(input.status, VALID_CASE_STATUSES, { domain: "case" })
+      : current.status;
+
     const updated: CaseDetails = {
       ...current,
       title: input.title?.trim() ? input.title.trim() : current.title,
       description:
         input.description !== undefined ? input.description.trim() || undefined : current.description,
-      status: input.status ?? current.status,
+      status,
       updatedAt: this.nowProvider().toISOString()
     };
     await this.repository.updateCase(updated);
@@ -297,3 +344,4 @@ export class ObligationsAndCasesService {
     return caseDetails;
   }
 }
+

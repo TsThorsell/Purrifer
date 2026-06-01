@@ -24,6 +24,9 @@ export interface ImportBatchSummary {
   fileName: string;
   fileType: ImportFileType;
   importedAt: string;
+  source: string;
+  status: ImportBatchStatus;
+  statusReason?: string;
   totalRows: number;
   validRows: number;
   invalidRows: number;
@@ -32,6 +35,8 @@ export interface ImportBatchSummary {
 export interface ImportBatchDetails extends ImportBatchSummary {
   rows: ImportedTransactionRow[];
 }
+
+export type ImportBatchStatus = "ready" | "stopped" | "committed";
 
 export type ImportObjectType =
   | "leverantorsfaktura"
@@ -105,6 +110,8 @@ export interface TransactionImportApi {
   getImportReview(batchId: string): Promise<ImportReview>;
   saveImportRowMapping(input: SaveImportRowMappingInput): Promise<ImportRowMapping>;
   commitImportBatch(batchId: string): Promise<ImportCommitResult>;
+  stopImportBatch(batchId: string, reason?: string): Promise<ImportBatchDetails>;
+  resumeImportBatch(batchId: string): Promise<ImportBatchDetails>;
 }
 
 export const transactionImportChannels = {
@@ -113,5 +120,8 @@ export const transactionImportChannels = {
   getImportBatch: "transaction-import:get-batch",
   getImportReview: "transaction-import:get-import-review",
   saveImportRowMapping: "transaction-import:save-row-mapping",
-  commitImportBatch: "transaction-import:commit-batch"
+  commitImportBatch: "transaction-import:commit-batch",
+  stopImportBatch: "transaction-import:stop-batch",
+  resumeImportBatch: "transaction-import:resume-batch"
 } as const;
+

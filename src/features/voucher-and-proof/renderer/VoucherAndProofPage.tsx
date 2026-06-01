@@ -2,26 +2,34 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   VoucherBackupResult,
   VoucherCandidate,
-  VoucherDetails,
+  VoucherDocumentRelation,
+  VoucherProofChainLink,
+  VoucherStatusHistoryEntry,
   VoucherVerificationStatus
 } from "../contracts";
+import type { VoucherDetails } from "../contracts";
+import { Actions, Button, EmptyState, Field, FieldGrid, Page, PageHeader, Panel, SplitLayout, Stack, StatusPill } from "../../../renderer/components/Ui";
 
-const verificationOptions: Array<{
-  value: VoucherVerificationStatus;
-  label: string;
-}> = [
+interface VoucherAndProofPageProps {
+  initialVoucherId?: string;
+}
+
+const verificationOptions: Array<{ value: VoucherVerificationStatus; label: string }> = [
   { value: "full", label: "Fullt verifierad" },
   { value: "half", label: "Halvverifierad" },
   { value: "accepted-incomplete", label: "Inkomplett men accepterad" }
 ];
 
-export function VoucherAndProofPage() {
+export function VoucherAndProofPage({ initialVoucherId }: VoucherAndProofPageProps) {
   const [vouchers, setVouchers] = useState<VoucherDetails[]>([]);
   const [candidates, setCandidates] = useState<VoucherCandidate[]>([]);
   const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null);
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherDetails | null>(null);
+  const [relations, setRelations] = useState<VoucherDocumentRelation[]>([]);
+  const [statusHistory, setStatusHistory] = useState<VoucherStatusHistoryEntry[]>([]);
+  const [proofChain, setProofChain] = useState<VoucherProofChainLink[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [lastExport, setLastExport] = useState<VoucherBackupResult | null>(null);
+  const [lastExport, setLastExport] = useState<{ backupDirectory: string } | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   async function refreshData(preferredVoucherId?: string) {
@@ -38,34 +46,62 @@ export function VoucherAndProofPage() {
       setVouchers(detailList);
       setCandidates(candidateList);
 
-      const nextId = preferredVoucherId ?? selectedVoucherId ?? detailList[0]?.voucherId ?? null;
+      const nextId =
+        preferredVoucherId ??
+        selectedVoucherId ??
+        detailList[0]?.voucherId ??
+        null;
       setSelectedVoucherId(nextId);
+
       if (!nextId) {
         setSelectedVoucher(null);
+        setRelations([]);
+        setStatusHistory([]);
+        setProofChain([]);
       }
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte lasa verifikatdata.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa verifikatdata.");
     }
   }
 
   useEffect(() => {
     void refreshData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!selectedVoucherId) {
       setSelectedVoucher(null);
+      setRelations([]);
+      setStatusHistory([]);
+      setProofChain([]);
       return;
     }
 
-    void window.purrifer.voucherAndProof
-      .getVoucher(selectedVoucherId)
-      .then(setSelectedVoucher)
-      .catch((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : "Kunde inte lasa verifikatdetaljer.");
-      });
+    void Promise.all([
+      window.purrifer.voucherAndProof.getVoucher(selectedVoucherId),
+      window.purrifer.voucherAndProof.listVoucherRelations(selectedVoucherId),
+      window.purrifer.voucherAndProof.getVoucherStatusHistory(selectedVoucherId),
+      window.purrifer.voucherAndProof.getVoucherProofChain(selectedVoucherId)
+    ]).then(([voucher, linkedRelations, history, chain]) => {
+      setSelectedVoucher(voucher);
+      setRelations(linkedRelations);
+      setStatusHistory(history);
+      setProofChain(chain);
+    }).catch((reason: unknown) => {
+      setError(reason instanceof Error ? reason.message : "Kunde inte läsa verifikatdetaljer.");
+      setSelectedVoucher(null);
+      setRelations([]);
+      setStatusHistory([]);
+      setProofChain([]);
+    });
   }, [selectedVoucherId]);
+
+  useEffect(() => {
+    if (!initialVoucherId) {
+      return;
+    }
+    void refreshData(initialVoucherId);
+  }, [initialVoucherId]);
 
   const unlinkedCandidates = useMemo(
     () => candidates.filter((candidate) => !candidate.alreadyLinked),
@@ -86,6 +122,29 @@ export function VoucherAndProofPage() {
     }
   }
 
+  async function linkSupportingDocument(documentId: string) {
+    if (!selectedVoucher) {
+      return;
+    }
+
+    const key = `link:${selectedVoucher.voucherId}:${documentId}`;
+    setBusyAction(key);
+    setError(null);
+
+    try {
+      await window.purrifer.voucherAndProof.linkVoucherToDocument(
+        selectedVoucher.voucherId,
+        documentId,
+        "supporting-document"
+      );
+      await refreshData(selectedVoucher.voucherId);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Kunde inte länka dokumentet.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function updateVerificationStatus(status: VoucherVerificationStatus) {
     if (!selectedVoucher) {
       return;
@@ -93,6 +152,7 @@ export function VoucherAndProofPage() {
 
     setBusyAction(status);
     setError(null);
+
     try {
       const updated = await window.purrifer.voucherAndProof.setVoucherVerificationStatus(
         selectedVoucher.voucherId,
@@ -114,6 +174,7 @@ export function VoucherAndProofPage() {
 
     setBusyAction("export");
     setError(null);
+
     try {
       const result = await window.purrifer.voucherAndProof.exportVoucherBackup(selectedVoucher.voucherId);
       setLastExport(result);
@@ -130,182 +191,197 @@ export function VoucherAndProofPage() {
     }
 
     setError(null);
+
     try {
       await window.purrifer.voucherAndProof.openVoucherSourceDocument(selectedVoucher.voucherId);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "Kunde inte oppna verifikatets underlag.");
+      setError(reason instanceof Error ? reason.message : "Kunde inte öppna verifikatets underlag.");
     }
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Voucher and Proof</p>
-          <h2>Verifikat och beviskedja</h2>
-          <p className="muted">
-            Skapa verifikat fran sparade dokument, satt verifieringsstatus och exportera backup som UL/MD.
-          </p>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Voucher and Proof"
+        title="Verifikat och beviskedja"
+        description="Skapa verifikat från sparade dokument, hantera relationer, spåra verifieringsstatus och beviskedja."
+      />
+      {error ? <div className="ui-error-banner">{error}</div> : null}
+      {lastExport ? <div className="ui-success-banner">Backup exporterad till {lastExport.backupDirectory}</div> : null}
 
-      {error ? <div className="error-banner">{error}</div> : null}
-
-      {lastExport ? (
-        <div className="success-banner">
-          Backup exporterad till {lastExport.backupDirectory}
-        </div>
-      ) : null}
-
-      <section className="split-layout">
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Skapa fran dokument</h3>
-            <span className="status-pill neutral">{unlinkedCandidates.length}</span>
-          </div>
-          <div className="stacked-list">
-            {unlinkedCandidates.length === 0 ? (
-              <div className="empty-state">
-                <p>Alla kanda dokument ar redan kopplade till verifikat, eller sa saknas inkorgsposter.</p>
-              </div>
-            ) : null}
-
+      <SplitLayout>
+        <Panel title="Skapa från dokument" status={<StatusPill>{unlinkedCandidates.length}</StatusPill>}>
+          {unlinkedCandidates.length === 0 ? (
+            <EmptyState>
+              Alla kända dokument är redan kopplade till verifikat, eller så saknas inkorgsposter.
+            </EmptyState>
+          ) : null}
+          <Stack>
             {unlinkedCandidates.map((candidate) => (
-              <article key={candidate.documentId} className="list-card">
-                <div className="list-card-topline">
-                  <h4>{candidate.fileName}</h4>
-                  <span className="status-pill neutral">{candidate.documentId}</span>
+              <article key={candidate.documentId} className="ui-card">
+                <div className="ui-card__header">
+                  <div className="ui-card__title-block">
+                    <h4>{candidate.fileName}</h4>
+                    <p className="ui-muted">{candidate.source} · {candidate.mimeType}</p>
+                  </div>
+                  <StatusPill>{candidate.documentId}</StatusPill>
                 </div>
-                <p className="muted">
-                  {candidate.source} · {candidate.mimeType}
-                </p>
                 <small>{candidate.receivedAt}</small>
-                <div className="detail-actions">
-                  <button
-                    className="primary-button"
-                    type="button"
+                <Actions>
+                  <Button
                     onClick={() => void createVoucher(candidate.documentId)}
                     disabled={busyAction === candidate.documentId}
                   >
-                    Skapa verifikat
-                  </button>
-                </div>
+                    Skapa verifikat (primärkälla)
+                  </Button>
+                  <Button
+                    tone="secondary"
+                    onClick={() => void linkSupportingDocument(candidate.documentId)}
+                    disabled={!selectedVoucher || busyAction === `link:${selectedVoucher?.voucherId}:${candidate.documentId}`}
+                  >
+                    Koppla som stöd till valt verifikat
+                  </Button>
+                </Actions>
               </article>
             ))}
-          </div>
-        </article>
+          </Stack>
+        </Panel>
 
-        <article className="panel-card">
-          <div className="panel-topline">
-            <h3>Befintliga verifikat</h3>
-            <span className="status-pill neutral">{vouchers.length}</span>
-          </div>
-
-          <div className="stacked-list">
-            {vouchers.length === 0 ? (
-              <div className="empty-state">
-                <p>Inga verifikat skapade annu.</p>
-              </div>
-            ) : null}
-
+        <Panel title="Befintliga verifikat" status={<StatusPill>{vouchers.length}</StatusPill>}>
+          {vouchers.length === 0 ? <EmptyState>Inga verifikat skapade ännu.</EmptyState> : null}
+          <Stack>
             {vouchers.map((voucher) => (
               <button
                 key={voucher.voucherId}
-                className={voucher.voucherId === selectedVoucherId ? "list-card selectable selected" : "list-card selectable"}
+                className={
+                  voucher.voucherId === selectedVoucherId
+                    ? "ui-card selectable selected"
+                    : "ui-card selectable"
+                }
                 type="button"
                 onClick={() => setSelectedVoucherId(voucher.voucherId)}
               >
-                <div className="list-card-topline">
-                  <h4>{voucher.sourceFileName}</h4>
-                  <span className={`status-pill ${mapStatusClass(voucher.verificationStatus)}`}>
+                <div className="ui-card__header">
+                  <div className="ui-card__title-block">
+                    <h4>{voucher.sourceFileName}</h4>
+                    <p className="ui-muted">{voucher.voucherId} · {voucher.sourceDocumentId}</p>
+                  </div>
+                  <StatusPill tone={mapStatusTone(voucher.verificationStatus)}>
                     {renderStatusLabel(voucher.verificationStatus)}
-                  </span>
+                  </StatusPill>
                 </div>
-                <p className="muted">
-                  {voucher.voucherId} · {voucher.sourceDocumentId}
-                </p>
                 <small>{voucher.createdAt}</small>
               </button>
             ))}
-          </div>
-        </article>
-      </section>
+          </Stack>
+        </Panel>
+      </SplitLayout>
 
-      <article className="panel-card">
-        <div className="panel-topline">
-          <h3>Valt verifikat</h3>
-          {selectedVoucher ? <span className="status-pill neutral">{selectedVoucher.voucherId}</span> : null}
-        </div>
-
+      <Panel
+        title="Valt verifikat"
+        status={selectedVoucher ? <StatusPill>{selectedVoucher.voucherId}</StatusPill> : undefined}
+      >
         {!selectedVoucher ? (
-          <div className="empty-state">
-            <p>Valj ett verifikat for att se detaljer, andra status eller exportera backup.</p>
-          </div>
+          <EmptyState>Välj ett verifikat för att se detaljer, ändra status eller exportera backup.</EmptyState>
         ) : (
-          <div className="detail-grid">
-            <div>
-              <p className="detail-label">Titel</p>
-              <p>{selectedVoucher.title}</p>
-            </div>
-            <div>
-              <p className="detail-label">Kallfil</p>
-              <p>{selectedVoucher.sourceFileName}</p>
-            </div>
-            <div>
-              <p className="detail-label">Dokument-id</p>
-              <p>{selectedVoucher.sourceDocumentId}</p>
-            </div>
-            <div>
-              <p className="detail-label">Verifieringsstatus</p>
-              <p>{renderStatusLabel(selectedVoucher.verificationStatus)}</p>
-            </div>
-            <div>
-              <p className="detail-label">MIME-typ</p>
-              <p>{selectedVoucher.sourceMimeType}</p>
-            </div>
-            <div>
-              <p className="detail-label">Mottagen</p>
-              <p>{selectedVoucher.sourceReceivedAt}</p>
-            </div>
-
-            <div className="detail-span">
-              <p className="detail-label">Lagrad sokvag</p>
-              <p className="path-preview">{selectedVoucher.sourceStoredPath}</p>
-            </div>
-
-            <div className="detail-span">
-              <p className="detail-label">Verifieringslage</p>
-              <div className="choice-row">
-                {verificationOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    className={
-                      selectedVoucher.verificationStatus === option.value
-                        ? "secondary-button selected-chip"
-                        : "secondary-button"
-                    }
-                    type="button"
-                    onClick={() => void updateVerificationStatus(option.value)}
-                    disabled={busyAction === option.value}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="detail-actions">
-              <button className="secondary-button" type="button" onClick={() => void openSelectedSource()}>
-                Oppna underlag
-              </button>
-              <button className="primary-button" type="button" onClick={() => void exportSelectedVoucher()} disabled={busyAction === "export"}>
-                Exportera UL/MD
-              </button>
-            </div>
-          </div>
+          <>
+            <FieldGrid>
+              <Field label="Titel"><p>{selectedVoucher.title}</p></Field>
+              <Field label="Källfil"><p>{selectedVoucher.sourceFileName}</p></Field>
+              <Field label="Dokument-id"><p>{selectedVoucher.sourceDocumentId}</p></Field>
+              <Field label="Verifieringsstatus"><p>{renderStatusLabel(selectedVoucher.verificationStatus)}</p></Field>
+              <Field label="MIME-typ"><p>{selectedVoucher.sourceMimeType}</p></Field>
+              <Field label="Mottagen"><p>{selectedVoucher.sourceReceivedAt}</p></Field>
+              <Field label="Lagrad sökväg" className="ui-field-span">
+                <p className="ui-path-preview">{selectedVoucher.sourceStoredPath}</p>
+              </Field>
+              <Field label="Verifieringsläge" className="ui-field-span">
+                <div className="ui-choice-row">
+                  {verificationOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      tone="secondary"
+                      className={
+                        selectedVoucher.verificationStatus === option.value
+                          ? "ui-selected-chip"
+                          : undefined
+                      }
+                      onClick={() => void updateVerificationStatus(option.value)}
+                      disabled={busyAction === option.value}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </Field>
+            </FieldGrid>
+            <Actions>
+              <Button onClick={() => void openSelectedSource()}>Öppna underlag</Button>
+              <Button onClick={() => void exportSelectedVoucher()} disabled={busyAction === "export"}>Exportera UL/MD</Button>
+            </Actions>
+          </>
         )}
-      </article>
-    </section>
+      </Panel>
+
+      <SplitLayout>
+        <Panel title="Relaterade dokument" status={<StatusPill>{relations.length}</StatusPill>}>
+          <Stack>
+            {relations.map((relation) => (
+              <article key={`${relation.voucherId}-${relation.documentId}-${relation.relationType}`} className="ui-card">
+                <div className="ui-card__header">
+                  <div className="ui-card__title-block">
+                    <h4>{relation.documentFileName}</h4>
+                    <p className="ui-muted">{relation.documentId}</p>
+                  </div>
+                  <StatusPill>{renderRelationType(relation.relationType)}</StatusPill>
+                </div>
+                <small>Länkat av {relation.linkedBy} kl {relation.linkedAt}</small>
+              </article>
+            ))}
+            {relations.length === 0 ? <EmptyState>Inga dokumentrelationer registrerade.</EmptyState> : null}
+          </Stack>
+        </Panel>
+
+        <Panel title="Statushistorik" status={<StatusPill>{statusHistory.length}</StatusPill>}>
+          <Stack>
+            {statusHistory.map((entry) => (
+              <article key={entry.historyId} className="ui-card">
+                <div className="ui-card__header">
+                  <div className="ui-card__title-block">
+                    <h4>{renderTransitionLabel(entry.previousStatus, entry.newStatus)}</h4>
+                    <p className="ui-muted">{entry.actor}</p>
+                  </div>
+                  <StatusPill>{entry.reasonCode ?? "statusändring"}</StatusPill>
+                </div>
+                <small>{entry.changedAt}</small>
+                <p className="ui-muted">{entry.reasonCode ?? "Spårbar ändring"}</p>
+              </article>
+            ))}
+            {statusHistory.length === 0 ? <EmptyState>Ingen statushistorik ännu.</EmptyState> : null}
+          </Stack>
+        </Panel>
+      </SplitLayout>
+
+      <Panel title="Beviskedja" status={<StatusPill>{proofChain.length}</StatusPill>}>
+        <Stack>
+          {proofChain.map((entry) => (
+            <article key={`${entry.commitBatchId}-${entry.recordId}`} className="ui-card">
+              <div className="ui-card__header">
+                <div className="ui-card__title-block">
+                  <h4>{entry.recordType}</h4>
+                  <p className="ui-muted">{entry.recordId}</p>
+                </div>
+                <StatusPill>{entry.stageStatus}</StatusPill>
+              </div>
+              <p className="ui-muted">{entry.commitBatchId} · {entry.committedAt}</p>
+              <small>Länkad till objekt {entry.objectType}:{entry.objectId}</small>
+              {entry.reviewActionStatus ? <small>Granskningsstatus: {entry.reviewActionStatus}</small> : null}
+            </article>
+          ))}
+          {proofChain.length === 0 ? <EmptyState>Ingen beviskedja ännu.</EmptyState> : null}
+        </Stack>
+      </Panel>
+    </Page>
   );
 }
 
@@ -315,23 +391,29 @@ function renderStatusLabel(status: VoucherVerificationStatus): string {
       return "Fullt verifierad";
     case "half":
       return "Halvverifierad";
-    case "accepted-incomplete":
-      return "Inkomplett men accepterad";
     default:
-      return status;
+      return "Inkomplett men accepterad";
   }
 }
 
-function mapStatusClass(status: VoucherVerificationStatus): string {
+function mapStatusTone(status: VoucherVerificationStatus): "success" | "warning" | "neutral" {
   switch (status) {
     case "full":
-      return "completed";
+      return "success";
     case "half":
-      return "running";
-    case "accepted-incomplete":
-      return "neutral";
+      return "warning";
     default:
       return "neutral";
   }
 }
 
+function renderRelationType(relationType: "primary-source" | "supporting-document") {
+  return relationType === "primary-source" ? "Primärkälla" : "Stöddokument";
+}
+
+function renderTransitionLabel(previousStatus: string | null, newStatus: string): string {
+  if (!previousStatus) {
+    return `Skapad med status ${newStatus}`;
+  }
+  return `${previousStatus} → ${newStatus}`;
+}

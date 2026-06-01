@@ -1,4 +1,4 @@
-import type { SliceManifest } from "@app/registry/slices";
+import type { SliceManifest } from "@app/registry/sliceManifestTypes";
 
 export const documentInboxManifest: SliceManifest = {
   sliceId: "document-inbox",
@@ -15,4 +15,5 @@ export const documentInboxManifest: SliceManifest = {
     { route: "document-inbox", label: "Inkorg", sliceId: "document-inbox" }
   ]
 };
+
 

@@ -25,5 +25,10 @@ export interface AppNavigationItem {
   route: AppRouteKey;
   label: string;
   sliceId: string;
+  title?: string;
+  icon?: string;
+  permissions?: string[];
+  parentRoute?: AppRouteKey;
 }
+
 

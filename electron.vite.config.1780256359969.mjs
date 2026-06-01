@@ -1,0 +1,48 @@
+// electron.vite.config.ts
+import { defineConfig } from "electron-vite";
+import react from "@vitejs/plugin-react";
+import { resolve } from "node:path";
+var electron_vite_config_default = defineConfig({
+  main: {
+    build: {
+      outDir: "dist-electron/main",
+      rollupOptions: {
+        external: ["better-sqlite3"]
+      }
+    },
+    resolve: {
+      alias: {
+        "@app": resolve("src/app"),
+        "@features": resolve("src/features")
+      }
+    }
+  },
+  preload: {
+    build: {
+      outDir: "dist-electron/preload",
+      rollupOptions: {
+        external: ["better-sqlite3"]
+      }
+    },
+    resolve: {
+      alias: {
+        "@app": resolve("src/app"),
+        "@features": resolve("src/features")
+      }
+    }
+  },
+  renderer: {
+    root: "src/renderer",
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@app": resolve("src/app"),
+        "@features": resolve("src/features"),
+        "@renderer": resolve("src/renderer")
+      }
+    }
+  }
+});
+export {
+  electron_vite_config_default as default
+};
